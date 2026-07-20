@@ -21,6 +21,17 @@ app.include_router(documents.router)
 app.include_router(chat.router)
 
 
+@app.get("/")
+def root() -> dict:
+    """Friendly landing response so the base URL isn't a bare 404."""
+    return {
+        "service": "MediCite API",
+        "description": "RAG-powered clinical document Q&A with page-level citations.",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {
