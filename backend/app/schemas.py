@@ -39,4 +39,7 @@ class AskResponse(BaseModel):
     citations: list[Citation]
     cited_markers: list[int]
     abstained: bool
+    # "grounded" = answered from the documents (with citations);
+    # "general"  = answered from general knowledge (no document match).
+    mode: Literal["grounded", "general"] = "grounded"
     usage: dict[str, int] = {}

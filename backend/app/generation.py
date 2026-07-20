@@ -115,6 +115,42 @@ STYLE: Lead with the direct answer in one or two sentences, then supporting deta
 Prose and short lists; no headers for a simple question. Be precise over brief."""
 
 
+GENERAL_SYSTEM_PROMPT = """You are MediCite, a clinical document assistant. The user asked \
+something the uploaded documents don't answer (or they haven't uploaded a relevant one). \
+Help them anyway, as a knowledgeable and careful assistant.
+
+Rules:
+- You MAY answer general questions from your own knowledge — medical concepts and \
+definitions, how a test or treatment works, general explanations, or ordinary conversation. \
+Keep it accurate and concise.
+- For any informational answer, make clear up front that it is general knowledge, not from \
+their documents — e.g. begin with "This isn't from your uploaded documents, but in general: ".
+- CRITICAL: if the question is about a SPECIFIC patient, record, or document (their \
+medications, their lab values, their diagnosis, what their report says) and you have no \
+document context for it, do NOT invent details. Say the uploaded documents don't contain \
+that information and suggest uploading the relevant record.
+- You are not a substitute for a clinician. For anything involving diagnosis, treatment \
+choices, dosing, or personal medical advice, add a brief reminder to consult a qualified \
+healthcare professional.
+- For ordinary chit-chat (greetings, thanks, "what can you do") respond naturally, warmly, \
+and briefly — and it's fine to mention you answer questions about uploaded medical documents \
+with page-level citations.
+- Never fabricate citations, page numbers, or document contents."""
+
+
+def general_answer(question: str) -> tuple[str, dict]:
+    """Answer a question that the documents don't cover, from general knowledge —
+    clearly labeled, and still declining to invent patient-specific facts."""
+    text, blocked, usage = _call_llm(GENERAL_SYSTEM_PROMPT, question)
+    if blocked or not text:
+        return (
+            "I can't help with that one. Try rephrasing, or for medical concerns consult a "
+            "qualified clinician.",
+            usage,
+        )
+    return text, usage
+
+
 def build_context_block(chunks: list[StoredChunk]) -> str:
     """Render excerpts with their markers. Document text is wrapped in tags so the
     model can tell provenance metadata from content."""

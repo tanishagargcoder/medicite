@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ..generation import generate_answer, to_citations
+from ..generation import general_answer, generate_answer, to_citations
 from ..retrieval import retrieve
 from ..schemas import AskRequest, AskResponse
 
@@ -19,19 +19,33 @@ def ask(request: AskRequest) -> AskResponse:
         raise HTTPException(400, "Question is too long (2000 character limit).")
 
     chunks, rerank_scores = retrieve(question, request.document_ids, request.top_k)
-    answer, markers, abstained, usage = generate_answer(question, chunks)
-    citations = to_citations(chunks, rerank_scores)
 
-    # Only return citations the answer actually used — the UI renders these as
-    # clickable source cards, and unused excerpts are noise.
-    if markers:
-        cited = {m for m in markers}
-        citations = [c for c in citations if c.marker in cited]
+    # Grounded path: if we retrieved anything, try to answer from the documents.
+    if chunks:
+        answer, markers, abstained, usage = generate_answer(question, chunks)
+        if not abstained:
+            citations = to_citations(chunks, rerank_scores)
+            if markers:
+                cited = set(markers)
+                citations = [c for c in citations if c.marker in cited]
+            return AskResponse(
+                answer=answer,
+                citations=citations,
+                cited_markers=markers,
+                abstained=False,
+                mode="grounded",
+                usage=usage,
+            )
 
+    # General path: no relevant document context (nothing retrieved, or the
+    # grounded answer abstained). Answer from general knowledge, clearly labeled —
+    # while still declining to invent patient-specific facts.
+    answer, usage = general_answer(question)
     return AskResponse(
         answer=answer,
-        citations=citations,
-        cited_markers=markers,
-        abstained=abstained,
+        citations=[],
+        cited_markers=[],
+        abstained=False,
+        mode="general",
         usage=usage,
     )

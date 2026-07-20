@@ -27,6 +27,7 @@ export interface AskResponse {
   citations: Citation[];
   cited_markers: number[];
   abstained: boolean;
+  mode: "grounded" | "general";
   usage: Record<string, number>;
 }
 

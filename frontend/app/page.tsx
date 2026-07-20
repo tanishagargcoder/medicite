@@ -24,6 +24,7 @@ interface Turn {
   answer: string | null;
   citations: Citation[];
   abstained: boolean;
+  mode: "grounded" | "general";
   error: string | null;
 }
 
@@ -108,15 +109,13 @@ export default function Home() {
   const submit = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
-    if (documents.length === 0) {
-      setBanner("Upload a document first — answers come only from your uploads.");
-      return;
-    }
+    // No document guard — with no relevant docs the backend answers from general
+    // knowledge (clearly labeled), so general questions and chit-chat still work.
 
     const turnId = crypto.randomUUID();
     setTurns((prev) => [
       ...prev,
-      { id: turnId, question: trimmed, answer: null, citations: [], abstained: false, error: null },
+      { id: turnId, question: trimmed, answer: null, citations: [], abstained: false, mode: "grounded", error: null },
     ]);
     setQuestion("");
     setPending(true);
@@ -126,7 +125,13 @@ export default function Home() {
       setTurns((prev) =>
         prev.map((t) =>
           t.id === turnId
-            ? { ...t, answer: result.answer, citations: result.citations, abstained: result.abstained }
+            ? {
+                ...t,
+                answer: result.answer,
+                citations: result.citations,
+                abstained: result.abstained,
+                mode: result.mode,
+              }
             : t,
         ),
       );
@@ -252,6 +257,15 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="rounded-2xl rounded-tl-md border border-slate-200/80 bg-white p-4 shadow-card">
+                      {turn.mode === "general" && (
+                        <p className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-200">
+                          <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4M12 8h.01" />
+                          </svg>
+                          General knowledge — not from your documents
+                        </p>
+                      )}
                       {turn.abstained && (
                         <p className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
                           <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
