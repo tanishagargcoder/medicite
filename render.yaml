@@ -1,0 +1,35 @@
+# Render Blueprint — free, no card, native Python (no Docker needed).
+# In Render: New → Blueprint → connect the medicite repo → it reads this file.
+# Then set the two secret env vars (GROQ_API_KEY, ALLOWED_ORIGINS) in the dashboard.
+services:
+  - type: web
+    name: medicite-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: LLM_PROVIDER
+        value: groq
+      # Free tier has 512MB RAM — running both the embedding and reranker models
+      # can exceed it, so the deployed instance uses vector-only retrieval.
+      # (Retrieval degrades gracefully; locally you keep the full two-stage pipeline.)
+      - key: RERANK_ENABLED
+        value: "false"
+      # /tmp is writable on Render's ephemeral filesystem.
+      - key: UPLOAD_DIR
+        value: /tmp/medicite/uploads
+      - key: INDEX_DIR
+        value: /tmp/medicite/index
+      - key: HF_HOME
+        value: /tmp/hf
+      - key: FASTEMBED_CACHE_PATH
+        value: /tmp/fastembed
+      # Set these two in the Render dashboard (marked sync:false = you fill them in).
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

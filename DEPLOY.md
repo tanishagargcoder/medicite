@@ -2,57 +2,57 @@
 
 Two pieces go to two hosts:
 
-- **Backend (FastAPI + ML models)** → **Hugging Face Spaces** (Docker). Free, 16 GB
-  RAM, built for ML — the embedding + reranker models load comfortably. (Render's
-  free tier has only 512 MB and will likely OOM with both models.)
+- **Backend (FastAPI + ML models)** → **Render** (free web service, native Python,
+  no card, no Docker needed).
 - **Frontend (Next.js)** → **Vercel**. Free, and it's what you already use.
 
 Total cost: **₹0**. Generation runs on your free Groq key.
 
+> **Why not Hugging Face Spaces?** As of mid-2026 HF made Docker and Gradio Spaces
+> PRO-only ($9/mo) — only Static Spaces are free, which can't run FastAPI. Render's
+> free tier still runs a Python web service for free.
+
 ---
 
-## 1. Backend → Hugging Face Spaces
+## 1. Backend → Render
 
-1. Make a free account at https://huggingface.co
-2. **New → Space**. Name it `medicite-api`. Choose **Docker** → **Blank**. Keep it
-   public (private Spaces sleep aggressively on free tier).
-3. The Space is a git repo. Push **only the `backend/` folder's contents** to it:
+Render's free instance has **512 MB RAM**. Running both the embedding *and* reranker
+models can exceed that, so the deployed backend uses **vector-only retrieval**
+(`RERANK_ENABLED=false`, already set in `render.yaml`). Retrieval still works; it
+just skips the cross-encoder rerank stage. Locally you keep the full two-stage
+pipeline — so your demo video / screenshots show reranking, and the live link is a
+lighter version. (To run the full pipeline live, use a host with ≥1 GB RAM — see
+"Production upgrades".)
 
-   ```bash
-   cd backend
-   git init
-   git remote add space https://huggingface.co/spaces/<your-username>/medicite-api
-   git add .
-   git commit -m "MediCite backend"
-   git push space main
-   ```
-
-   (Or upload the files through the Space's web UI — drag `Dockerfile`,
-   `requirements.txt`, and the `app/` and `scripts/` folders.)
-
-4. Add the Space to use the Docker port. In the Space **Settings → Variables and
-   secrets**, add these **Secrets**:
+1. Make a free account at https://render.com (sign in with GitHub — no card).
+2. **New → Blueprint**. Connect your GitHub and pick the **`medicite`** repo. Render
+   reads `render.yaml` and proposes the `medicite-api` service. Click **Apply**.
+3. It will ask for the two secret env vars (`sync: false` in the blueprint):
 
    | Name | Value |
    |---|---|
    | `GROQ_API_KEY` | your `gsk_...` key |
-   | `LLM_PROVIDER` | `groq` |
-   | `ALLOWED_ORIGINS` | `https://<your-vercel-app>.vercel.app` (fill in after step 2 below; comma-separate to allow more) |
+   | `ALLOWED_ORIGINS` | `https://<your-vercel-app>.vercel.app` — fill in after step 2 below; use `*` for now |
 
-5. In the Space **Settings**, set **App port** to `7860` (the Dockerfile exposes it).
-6. The Space builds and starts. First boot downloads the embedding model (~90 MB),
-   so give it a minute. Your API base URL is:
+4. First build installs dependencies and, on the first request, downloads the
+   embedding model (~90 MB) — so the very first question after a cold start takes a
+   few extra seconds. Your API base URL is:
 
    ```
-   https://<your-username>-medicite-api.hf.space
+   https://medicite-api.onrender.com
    ```
 
-   Check it: open `https://<...>.hf.space/api/health` — you should see the JSON
-   health response with `"llm_provider":"groq"`.
+   Check it: open `https://medicite-api.onrender.com/api/health` — you should see the
+   JSON health response with `"llm_provider":"groq"`.
 
-> **Note on persistence:** the free Space's disk is ephemeral — uploaded documents
-> reset when the Space restarts. That's fine for a demo (upload, then ask in the
-> same session). For durable storage, see "Production upgrades" below.
+> **Two free-tier notes:** (1) the instance **spins down after ~15 min idle**, so the
+> first request after a gap takes ~50 s to wake — normal for free Render. (2) The disk
+> is ephemeral: uploaded documents reset on restart. Fine for a demo (upload, then ask
+> in the same session). For durable storage, see "Production upgrades" below.
+
+> **Prefer Docker?** A `backend/Dockerfile` is included and works on **Google Cloud
+> Run** (free tier, ≥1 GB RAM, keeps the full reranker pipeline — needs a Google
+> account with a card on file, but stays within the free allowance) or **Fly.io**.
 
 ---
 
@@ -99,6 +99,7 @@ With both, nothing is ephemeral and the deploy is genuinely production-shaped.
 | `GROQ_API_KEY` | backend | Groq generation key |
 | `LLM_PROVIDER` | backend | `groq` or `gemini` |
 | `GROQ_MODEL` | backend | default `llama-3.3-70b-versatile` |
+| `RERANK_ENABLED` | backend | `false` on Render free (512 MB); `true` locally / on ≥1 GB hosts |
 | `ALLOWED_ORIGINS` | backend | comma-separated frontend URLs for CORS |
 | `VECTOR_STORE` | backend | `local` or `pgvector` |
 | `DATABASE_URL` | backend | Postgres DSN (pgvector mode) |
