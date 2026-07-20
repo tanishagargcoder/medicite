@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* react-pdf text + annotation layers */
+.react-pdf__Page__textContent {
+  user-select: text;
+}
+
+.react-pdf__Page__canvas {
+  @apply mx-auto shadow-sm ring-1 ring-slate-200;
+}
+
+/* Brief flash on the page a citation jumps to, so the eye lands in the right place. */
+@keyframes citation-flash {
+  0% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.5); }
+  40% { box-shadow: 0 0 0 6px rgba(15, 118, 110, 0.25); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+}
+
+.citation-target {
+  animation: citation-flash 1.4s ease-out;
+  border-radius: 4px;
+}

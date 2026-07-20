@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: medicite-pg
+    environment:
+      POSTGRES_USER: medicite
+      POSTGRES_PASSWORD: medicite
+      POSTGRES_DB: medicite
+    ports:
+      - "5433:5432"
+    volumes:
+      - medicite_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicite -d medicite"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  medicite_pgdata:
