@@ -189,32 +189,36 @@ export default function Home() {
 
         <div ref={transcriptRef} className="flex-1 overflow-y-auto px-6 py-6">
           {turns.length === 0 ? (
-            <div className="mx-auto max-w-lg py-10">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-clinical-50 text-clinical-600">
-                <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="mx-auto max-w-xl animate-fade-up py-12">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-clinical-600 to-clinical-400 text-white shadow-float">
+                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 5a2 2 0 0 1 2-2h8l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
                   <path d="M9 12h6M12 9v6" />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
                 Ask a question about your records
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Every claim in the answer carries a citation you can click to open the
-                exact page it came from. If the documents don&apos;t say, MediCite says so
-                rather than guessing.
+              <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
+                Every claim carries a citation you can click to open the exact source
+                page. If the documents don&apos;t say, MediCite says so — it never guesses.
               </p>
-              <p className="mt-4 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Try one
               </p>
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                 {SAMPLE_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => submit(q)}
-                    className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition hover:border-clinical-500 hover:bg-clinical-50"
+                    className="group flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-left text-sm text-slate-700 shadow-card transition hover:-translate-y-0.5 hover:border-clinical-400 hover:shadow-float"
                   >
-                    {q}
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-clinical-50 text-clinical-600 transition group-hover:bg-clinical-500 group-hover:text-white">
+                      <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                      </svg>
+                    </span>
+                    <span className="leading-snug">{q}</span>
                   </button>
                 ))}
               </div>
@@ -222,9 +226,9 @@ export default function Home() {
           ) : (
             <div className="mx-auto max-w-2xl space-y-8">
               {turns.map((turn) => (
-                <div key={turn.id}>
+                <div key={turn.id} className="animate-fade-up">
                   <div className="mb-3 flex justify-end">
-                    <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-clinical-500 px-4 py-2 text-sm font-medium text-white shadow-sm">
+                    <p className="max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-br from-clinical-600 to-clinical-500 px-4 py-2.5 text-sm font-medium text-white shadow-float">
                       {turn.question}
                     </p>
                   </div>
@@ -243,9 +247,12 @@ export default function Home() {
                       Retrieving passages and composing a grounded answer…
                     </div>
                   ) : (
-                    <div className="rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="rounded-2xl rounded-tl-md border border-slate-200/80 bg-white p-4 shadow-card">
                       {turn.abstained && (
-                        <p className="mb-2 inline-block rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                        <p className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                          <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                          </svg>
                           Not enough in the documents to answer
                         </p>
                       )}
@@ -256,33 +263,35 @@ export default function Home() {
                       />
 
                       {turn.citations.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        <div className="mt-4 border-t border-slate-100 pt-3.5">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                             Sources
                           </p>
-                          {turn.citations.map((citation) => (
-                            <button
-                              key={citation.chunk_id}
-                              onClick={() => jumpToCitation(citation)}
-                              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-clinical-500 hover:bg-clinical-50"
-                            >
-                              <div className="flex items-baseline gap-2">
-                                <span className="rounded bg-clinical-100 px-1.5 py-0.5 text-xs font-semibold text-clinical-700">
-                                  {citation.marker}
-                                </span>
-                                <span className="truncate text-xs font-medium text-slate-700">
-                                  {citation.filename}
-                                </span>
-                                <span className="ml-auto shrink-0 text-xs text-slate-500">
-                                  p.{citation.page_number}
-                                  {citation.section_title ? ` · ${citation.section_title}` : ""}
-                                </span>
-                              </div>
-                              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                                {citation.snippet}
-                              </p>
-                            </button>
-                          ))}
+                          <div className="space-y-2">
+                            {turn.citations.map((citation) => (
+                              <button
+                                key={citation.chunk_id}
+                                onClick={() => jumpToCitation(citation)}
+                                className="group block w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:border-clinical-400 hover:bg-white hover:shadow-card"
+                              >
+                                <div className="flex items-baseline gap-2">
+                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-clinical-500 text-[11px] font-bold text-white">
+                                    {citation.marker}
+                                  </span>
+                                  <span className="truncate text-xs font-semibold text-slate-700">
+                                    {citation.filename}
+                                  </span>
+                                  <span className="ml-auto shrink-0 text-xs font-medium text-clinical-600">
+                                    p.{citation.page_number}
+                                    {citation.section_title ? ` · ${citation.section_title}` : ""}
+                                  </span>
+                                </div>
+                                <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                                  {citation.snippet}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>

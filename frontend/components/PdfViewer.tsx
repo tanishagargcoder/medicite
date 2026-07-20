@@ -42,8 +42,15 @@ export default function PdfViewer({ fileUrl, filename, targetPage, jumpNonce }: 
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div className="max-w-xs">
-          <p className="text-sm font-medium text-slate-600">No document open</p>
-          <p className="mt-2 text-sm text-slate-500">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-clinical-500 shadow-card ring-1 ring-slate-200">
+            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+              <path d="M9 13h6M9 17h4" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-slate-700">Source viewer</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
             Select a document on the left, or click a citation in an answer to jump
             straight to its source page.
           </p>
