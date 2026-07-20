@@ -39,6 +39,7 @@ export default function Home() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeDoc, setActiveDoc] = useState<DocumentSummary | null>(null);
   const [targetPage, setTargetPage] = useState<number | null>(null);
+  const [highlightText, setHighlightText] = useState<string | null>(null);
   const [jumpNonce, setJumpNonce] = useState(0);
 
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -99,6 +100,8 @@ export default function Home() {
     const doc = documents.find((d) => d.id === citation.document_id);
     if (doc && doc.id !== activeDoc?.id) setActiveDoc(doc);
     setTargetPage(citation.page_number);
+    // Strip the trailing ellipsis so the truncated snippet still matches page text.
+    setHighlightText(citation.snippet.replace(/…$/, ""));
     setJumpNonce((n) => n + 1);
   };
 
@@ -151,6 +154,7 @@ export default function Home() {
         onOpen={(doc) => {
           setActiveDoc(doc);
           setTargetPage(null);
+          setHighlightText(null);
         }}
         onToggleSelected={toggleSelected}
         onDelete={handleDelete}
@@ -347,6 +351,7 @@ export default function Home() {
           fileUrl={activeDoc ? documentFileUrl(activeDoc.id) : null}
           filename={activeDoc?.filename ?? null}
           targetPage={targetPage}
+          highlightText={highlightText}
           jumpNonce={jumpNonce}
         />
       </section>

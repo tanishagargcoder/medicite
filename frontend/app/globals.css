@@ -38,6 +38,17 @@ body {
   user-select: text;
 }
 
+/* Cited-text highlight painted over the PDF text layer. The text layer sits
+   transparently above the canvas, so a background on the matched span reads as
+   a highlighter stroke over the rendered page. */
+.react-pdf__Page__textContent mark.pdf-hl {
+  background-color: rgba(250, 204, 21, 0.5);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0.05em 0;
+  box-shadow: 0 0 0 1px rgba(202, 138, 4, 0.35);
+}
+
 .react-pdf__Page__canvas {
   @apply mx-auto shadow-sm ring-1 ring-slate-200;
 }

@@ -17,10 +17,32 @@ interface Props {
   /** Page a citation asked us to jump to. Bumping `jumpNonce` re-triggers the
    *  scroll even when the same page is clicked twice in a row. */
   targetPage: number | null;
+  /** The cited chunk text — its lines get highlighted on the target page. */
+  highlightText: string | null;
   jumpNonce: number;
 }
 
-export default function PdfViewer({ fileUrl, filename, targetPage, jumpNonce }: Props) {
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Build a per-text-item renderer that wraps items belonging to the cited chunk
+ *  in a <mark>. The PDF text layer is split into many small items, so we match
+ *  each item against the normalized citation text rather than the whole string
+ *  at once. */
+function makeHighlighter(highlight: string) {
+  const target = normalize(highlight);
+  return ({ str }: { str: string }) => {
+    const s = normalize(str);
+    if (s.length > 2 && target.includes(s)) {
+      return `<mark class="pdf-hl">${escapeHtml(str)}</mark>`;
+    }
+    return escapeHtml(str);
+  };
+}
+
+export default function PdfViewer({ fileUrl, filename, targetPage, highlightText, jumpNonce }: Props) {
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [flashPage, setFlashPage] = useState<number | null>(null);
@@ -106,6 +128,11 @@ export default function PdfViewer({ fileUrl, filename, targetPage, jumpNonce }: 
                   width={640}
                   renderAnnotationLayer
                   renderTextLayer
+                  customTextRenderer={
+                    pageNumber === targetPage && highlightText
+                      ? makeHighlighter(highlightText)
+                      : undefined
+                  }
                 />
               </div>
             ))}
