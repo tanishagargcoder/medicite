@@ -21,6 +21,9 @@ def ask(request: AskRequest) -> AskResponse:
     chunks, rerank_scores = retrieve(question, request.document_ids, request.top_k)
 
     # Grounded path: if we retrieved anything, try to answer from the documents.
+    # The grounded model abstains (INSUFFICIENT_CONTEXT) when the excerpts don't
+    # answer the question OR when the message is a greeting / meta / non-document
+    # question — in which case we fall through to the general assistant.
     if chunks:
         answer, markers, abstained, usage = generate_answer(question, chunks)
         if not abstained:

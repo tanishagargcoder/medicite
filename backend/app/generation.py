@@ -97,6 +97,10 @@ from: [1], or [2][5] when several support it. No claim without a marker.
 4. If the excerpts do not contain enough information, reply with exactly \
 {ABSTAIN_TOKEN} on the first line, then one sentence on what is missing and what \
 document would answer it. Do not guess or partially answer from general knowledge.
+4a. If the user's message is not a question the excerpts could answer — a greeting \
+("hi", "hello"), small talk, a thank-you, or a meta question about you or your \
+capabilities ("what can you do") — reply with exactly {ABSTAIN_TOKEN} on the first \
+line and nothing else. Do NOT summarize the documents in response to a greeting.
 5. If excerpts conflict (for example a medication listed at different doses), say so \
 explicitly and cite both. Do not silently pick one.
 6. Quote exact values verbatim — doses, units, lab values, dates. Never round, \
@@ -236,9 +240,12 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
         )
 
     valid = set(range(1, len(chunks) + 1))
-    abstained = answer.startswith(ABSTAIN_TOKEN)
+    # Robust abstain detection — the model may not place the token at the exact
+    # start (leading quote, whitespace, a stray word), so look near the top.
+    abstained = ABSTAIN_TOKEN in answer[:80].upper()
     if abstained:
-        answer = answer[len(ABSTAIN_TOKEN) :].lstrip(" :\n") or (
+        idx = answer.upper().find(ABSTAIN_TOKEN)
+        answer = (answer[:idx] + answer[idx + len(ABSTAIN_TOKEN) :]).lstrip(" :\n\"'") or (
             "The uploaded documents don't contain enough information to answer that."
         )
 
