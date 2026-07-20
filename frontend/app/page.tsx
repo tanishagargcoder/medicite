@@ -158,6 +158,23 @@ export default function Home() {
 
       {/* Chat */}
       <section className="flex min-w-0 flex-1 flex-col border-r border-slate-200 bg-white">
+        <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Conversation</h2>
+            <p className="text-xs text-slate-500">
+              {documents.length === 0
+                ? "Upload a record to begin"
+                : selectedIds.size > 0
+                  ? `Scoped to ${selectedIds.size} document${selectedIds.size === 1 ? "" : "s"}`
+                  : `Searching all ${documents.length} document${documents.length === 1 ? "" : "s"}`}
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-clinical-50 px-2.5 py-1 text-xs font-medium text-clinical-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-clinical-500" />
+            Grounded &amp; cited
+          </span>
+        </header>
+
         {banner && (
           <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
             {banner}
@@ -281,24 +298,37 @@ export default function Home() {
             e.preventDefault();
             submit(question);
           }}
-          className="border-t border-slate-200 px-6 py-4"
+          className="border-t border-slate-200 bg-white px-6 py-4"
         >
-          <div className="mx-auto flex max-w-2xl gap-2">
+          <div className="mx-auto flex max-w-2xl items-center gap-1.5 rounded-full border border-slate-300 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-clinical-500 focus-within:ring-2 focus-within:ring-clinical-500/20">
             <input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g. What was the discharge diagnosis?"
+              placeholder="Ask about a diagnosis, medication, lab value…"
               disabled={pending}
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-clinical-500 focus:outline-none focus:ring-1 focus:ring-clinical-500 disabled:bg-slate-50"
+              className="flex-1 bg-transparent py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
             />
             <button
               type="submit"
               disabled={pending || !question.trim()}
-              className="rounded-lg bg-clinical-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-clinical-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+              aria-label="Ask"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-clinical-500 text-white transition hover:bg-clinical-600 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {pending ? "Asking…" : "Ask"}
+              {pending ? (
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 11l5-5 5 5M12 6v13" />
+                </svg>
+              )}
             </button>
           </div>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-[11px] text-slate-400">
+            Answers come only from your uploaded documents. Verify against the cited source.
+          </p>
         </form>
       </section>
 

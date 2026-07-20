@@ -8,6 +8,25 @@
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+::selection {
+  @apply bg-clinical-100 text-clinical-700;
+}
+
+/* Slimmer, calmer scrollbars in the scrolling panes */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+  border-radius: 9999px;
 }
 
 /* react-pdf text + annotation layers */
