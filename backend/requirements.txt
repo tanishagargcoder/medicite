@@ -5,6 +5,8 @@ pymupdf>=1.24
 python-docx>=1.1
 fastembed>=0.7
 numpy>=1.26
+# generation providers (both free-tier; pick one via LLM_PROVIDER)
+groq>=0.13
 google-genai>=1.0
 pydantic-settings>=2.3
 # pgvector path (optional — used when VECTOR_STORE=pgvector)

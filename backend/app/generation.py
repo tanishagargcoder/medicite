@@ -15,24 +15,71 @@ from __future__ import annotations
 
 import re
 
-from google import genai
-from google.genai import types
-
 from .config import settings
 from .schemas import Citation
 from .store import StoredChunk
 
-_client: genai.Client | None = None
+_client = None
 
 
-def get_client() -> genai.Client:
-    """Constructed on first use, not at import. Ingestion and retrieval need no
-    API key, so the service should still boot and serve them without one."""
+def _call_llm(system_prompt: str, user_content: str) -> tuple[str, bool, dict]:
+    """Send the prompt to the configured provider. Returns (text, blocked, usage).
+
+    Clients are constructed on first use, not at import — ingestion and retrieval
+    need no LLM key, so the service still boots and serves them without one.
+    Providers differ only here; everything downstream (citation parsing,
+    abstention) is provider-agnostic.
+    """
     global _client
+    provider = settings.llm_provider.lower()
+
+    if provider == "gemini":
+        from google import genai
+        from google.genai import types
+
+        if _client is None:
+            _client = genai.Client(api_key=settings.google_api_key or None)
+        response = _client.models.generate_content(
+            model=settings.gemini_model,
+            contents=user_content,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=settings.max_answer_tokens,
+                temperature=0.0,
+            ),
+        )
+        candidate = response.candidates[0] if response.candidates else None
+        blocked = candidate is None or str(getattr(candidate, "finish_reason", "")).endswith("SAFETY")
+        text = (response.text or "").strip() if not blocked else ""
+        meta = response.usage_metadata
+        usage = {
+            "input_tokens": getattr(meta, "prompt_token_count", 0) or 0,
+            "output_tokens": getattr(meta, "candidates_token_count", 0) or 0,
+        }
+        return text, blocked, usage
+
+    # Default: Groq (OpenAI-compatible chat completions).
+    from groq import Groq
+
     if _client is None:
-        api_key = settings.google_api_key or None  # falls back to GOOGLE_API_KEY env
-        _client = genai.Client(api_key=api_key)
-    return _client
+        _client = Groq(api_key=settings.groq_api_key or None)
+    completion = _client.chat.completions.create(
+        model=settings.groq_model,
+        max_tokens=settings.max_answer_tokens,
+        temperature=0.0,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    )
+    choice = completion.choices[0]
+    blocked = choice.finish_reason == "content_filter"
+    text = (choice.message.content or "").strip() if not blocked else ""
+    usage = {
+        "input_tokens": completion.usage.prompt_tokens if completion.usage else 0,
+        "output_tokens": completion.usage.completion_tokens if completion.usage else 0,
+    }
+    return text, blocked, usage
 
 
 ABSTAIN_TOKEN = "INSUFFICIENT_CONTEXT"
@@ -140,23 +187,10 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
         f"Answer using only the excerpts above, citing every claim with its marker."
     )
 
-    response = get_client().models.generate_content(
-        model=settings.gemini_model,
-        contents=user_content,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            max_output_tokens=settings.max_answer_tokens,
-            # Deterministic: a clinical answer shouldn't vary run to run.
-            temperature=0.0,
-        ),
-    )
-
-    # A safety block (or any non-STOP finish) leaves no usable text — treat it
-    # as a refusal rather than crashing on response.text.
-    candidate = response.candidates[0] if response.candidates else None
-    blocked = candidate is None or str(getattr(candidate, "finish_reason", "")) .endswith("SAFETY")
-    answer = (response.text or "").strip() if not blocked else ""
-    if not answer:
+    # Deterministic decoding (temperature 0) — a clinical answer shouldn't vary
+    # run to run. A safety block leaves no usable text; treat it as a refusal.
+    answer, blocked, usage = _call_llm(SYSTEM_PROMPT, user_content)
+    if blocked or not answer:
         return (
             "I can't answer that question from these documents. Please rephrase, or "
             "consult a clinician directly.",
@@ -175,9 +209,4 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
     answer = strip_invalid_markers(answer, valid)
     markers = parse_markers(answer, valid)
 
-    meta = response.usage_metadata
-    usage = {
-        "input_tokens": getattr(meta, "prompt_token_count", 0) or 0,
-        "output_tokens": getattr(meta, "candidates_token_count", 0) or 0,
-    }
     return answer, markers, abstained, usage

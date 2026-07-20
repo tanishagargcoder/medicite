@@ -173,15 +173,24 @@ export default function Home() {
         <div ref={transcriptRef} className="flex-1 overflow-y-auto px-6 py-6">
           {turns.length === 0 ? (
             <div className="mx-auto max-w-lg py-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-clinical-50 text-clinical-600">
+                <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 5a2 2 0 0 1 2-2h8l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                  <path d="M9 12h6M12 9v6" />
+                </svg>
+              </div>
               <h2 className="text-lg font-semibold text-slate-900">
                 Ask a question about your records
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Every claim in the answer carries a citation you can click to open the
                 exact page it came from. If the documents don&apos;t say, MediCite says so
                 rather than guessing.
               </p>
-              <div className="mt-5 space-y-2">
+              <p className="mt-4 text-xs font-medium uppercase tracking-wide text-slate-400">
+                Try one
+              </p>
+              <div className="mt-2 space-y-2">
                 {SAMPLE_QUESTIONS.map((q) => (
                   <button
                     key={q}
@@ -197,18 +206,27 @@ export default function Home() {
             <div className="mx-auto max-w-2xl space-y-8">
               {turns.map((turn) => (
                 <div key={turn.id}>
-                  <p className="mb-3 font-medium text-slate-900">{turn.question}</p>
+                  <div className="mb-3 flex justify-end">
+                    <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-clinical-500 px-4 py-2 text-sm font-medium text-white shadow-sm">
+                      {turn.question}
+                    </p>
+                  </div>
 
                   {turn.error ? (
                     <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                       {turn.error}
                     </p>
                   ) : turn.answer === null ? (
-                    <p className="text-sm text-slate-500">
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <span className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-clinical-500 [animation-delay:-0.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-clinical-500 [animation-delay:-0.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-clinical-500" />
+                      </span>
                       Retrieving passages and composing a grounded answer…
-                    </p>
+                    </div>
                   ) : (
-                    <>
+                    <div className="rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-4 shadow-sm">
                       {turn.abstained && (
                         <p className="mb-2 inline-block rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
                           Not enough in the documents to answer
@@ -250,7 +268,7 @@ export default function Home() {
                           ))}
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               ))}

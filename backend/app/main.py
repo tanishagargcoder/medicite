@@ -12,7 +12,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[o.strip() for o in settings.allowed_origins.split(",") if o.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,5 +28,6 @@ def health() -> dict:
         "vector_store": settings.vector_store,
         "storage_backend": settings.storage_backend,
         "embedding_model": settings.embedding_model,
-        "answer_model": settings.gemini_model,
+        "llm_provider": settings.llm_provider,
+        "answer_model": settings.groq_model if settings.llm_provider == "groq" else settings.gemini_model,
     }

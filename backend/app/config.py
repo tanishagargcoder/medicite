@@ -9,6 +9,10 @@ DATA_DIR = BASE_DIR / "data"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
+    # Comma-separated list of frontend origins allowed by CORS. In production set
+    # this to your deployed frontend URL, e.g. "https://medicite.vercel.app".
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
     # "local" (numpy, zero setup) or "pgvector" (Postgres via docker-compose)
     vector_store: str = "local"
     database_url: str = "postgresql://medicite:medicite@localhost:5433/medicite"
@@ -29,9 +33,17 @@ class Settings(BaseSettings):
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     rerank_enabled: bool = True
 
-    # generation — Google Gemini (free tier). Get a key at aistudio.google.com.
+    # generation — pick a provider, both have free tiers.
+    #   "groq"   -> console.groq.com  (free tier works instantly, no project setup)
+    #   "gemini" -> aistudio.google.com  (free, but the project must have free-tier access)
+    llm_provider: str = "groq"
+
     google_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
+
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+
     max_answer_tokens: int = 2048
 
     # chunking (approx tokens; 1 token ~= 4 chars)

@@ -13,6 +13,7 @@ class LocalFileStorage:
     def save(self, document_id: str, filename: str, data: bytes) -> str:
         suffix = ".pdf" if filename.lower().endswith(".pdf") else ".docx"
         path = settings.upload_dir / f"{document_id}{suffix}"
+        path.parent.mkdir(parents=True, exist_ok=True)  # resilient if the dir was removed
         path.write_bytes(data)
         return str(path)
 

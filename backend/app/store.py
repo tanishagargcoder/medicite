@@ -71,6 +71,7 @@ class LocalStore:
             self._matrix = np.zeros((0, settings.embedding_dim), dtype=np.float32)
 
     def _persist(self) -> None:
+        settings.index_dir.mkdir(parents=True, exist_ok=True)  # resilient if the dir was removed
         payload = {
             "documents": [asdict(d) for d in self._docs.values()],
             "chunks": self._chunks,
