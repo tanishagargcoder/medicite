@@ -57,11 +57,11 @@ the correct move, and the UI labels those turns explicitly.
 | Embeddings | fastembed / BAAI bge-small-en-v1.5 (local, 384-dim) |
 | Reranker | ms-marco-MiniLM-L-6-v2 cross-encoder |
 | Vector store | pgvector on Postgres — or numpy locally |
-| Generation | Claude Opus 4.8 |
+| Generation | Google Gemini 2.0 Flash (free tier) |
 | File storage | Local disk or S3 |
 
 Embeddings and reranking run locally, so ingestion needs no API key and costs nothing per
-document. Only answer generation calls out to an API.
+document. Only answer generation calls out to an API — a free Gemini key covers it.
 
 ## Running it
 
@@ -73,7 +73,7 @@ Requires Python 3.11+, Node 20+, and an Anthropic API key.
 cd backend
 python -m venv .venv && .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                                 # add your ANTHROPIC_API_KEY
+cp .env.example .env                                 # add your GOOGLE_API_KEY (free)
 python scripts/make_sample.py                        # optional synthetic record to test with
 uvicorn app.main:app --reload --port 8000
 ```

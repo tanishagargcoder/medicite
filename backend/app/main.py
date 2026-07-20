@@ -28,5 +28,5 @@ def health() -> dict:
         "vector_store": settings.vector_store,
         "storage_backend": settings.storage_backend,
         "embedding_model": settings.embedding_model,
-        "answer_model": settings.anthropic_model,
+        "answer_model": settings.gemini_model,
     }

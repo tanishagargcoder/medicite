@@ -15,21 +15,23 @@ from __future__ import annotations
 
 import re
 
-import anthropic
+from google import genai
+from google.genai import types
 
 from .config import settings
 from .schemas import Citation
 from .store import StoredChunk
 
-_client: anthropic.Anthropic | None = None
+_client: genai.Client | None = None
 
 
-def get_client() -> anthropic.Anthropic:
+def get_client() -> genai.Client:
     """Constructed on first use, not at import. Ingestion and retrieval need no
     API key, so the service should still boot and serve them without one."""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic()
+        api_key = settings.google_api_key or None  # falls back to GOOGLE_API_KEY env
+        _client = genai.Client(api_key=api_key)
     return _client
 
 
@@ -138,27 +140,30 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
         f"Answer using only the excerpts above, citing every claim with its marker."
     )
 
-    response = get_client().messages.create(
-        model=settings.anthropic_model,
-        max_tokens=settings.max_answer_tokens,
-        thinking={"type": "adaptive"},
-        output_config={"effort": "medium"},
-        system=[
-            # Stable prefix first so it caches across every question in a session.
-            {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
-        ],
-        messages=[{"role": "user", "content": user_content}],
+    response = get_client().models.generate_content(
+        model=settings.gemini_model,
+        contents=user_content,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            max_output_tokens=settings.max_answer_tokens,
+            # Deterministic: a clinical answer shouldn't vary run to run.
+            temperature=0.0,
+        ),
     )
 
-    if response.stop_reason == "refusal":
+    # A safety block (or any non-STOP finish) leaves no usable text — treat it
+    # as a refusal rather than crashing on response.text.
+    candidate = response.candidates[0] if response.candidates else None
+    blocked = candidate is None or str(getattr(candidate, "finish_reason", "")) .endswith("SAFETY")
+    answer = (response.text or "").strip() if not blocked else ""
+    if not answer:
         return (
-            "I can't answer that question. Please rephrase, or consult a clinician directly.",
+            "I can't answer that question from these documents. Please rephrase, or "
+            "consult a clinician directly.",
             [],
             True,
             {},
         )
-
-    answer = "".join(block.text for block in response.content if block.type == "text").strip()
 
     valid = set(range(1, len(chunks) + 1))
     abstained = answer.startswith(ABSTAIN_TOKEN)
@@ -170,9 +175,9 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
     answer = strip_invalid_markers(answer, valid)
     markers = parse_markers(answer, valid)
 
+    meta = response.usage_metadata
     usage = {
-        "input_tokens": response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
-        "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+        "input_tokens": getattr(meta, "prompt_token_count", 0) or 0,
+        "output_tokens": getattr(meta, "candidates_token_count", 0) or 0,
     }
     return answer, markers, abstained, usage

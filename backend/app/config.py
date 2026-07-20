@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     rerank_enabled: bool = True
 
-    # generation
-    anthropic_model: str = "claude-opus-4-8"
+    # generation — Google Gemini (free tier). Get a key at aistudio.google.com.
+    google_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
     max_answer_tokens: int = 2048
 
     # chunking (approx tokens; 1 token ~= 4 chars)
