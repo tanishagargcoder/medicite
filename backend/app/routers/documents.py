@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from ..auth import current_user
 from ..chunking import chunk_blocks
 from ..embeddings import embed_documents
 from ..extraction import UnsupportedFileType, extract
 from ..schemas import DocumentSummary
 from ..storage import file_storage
 from ..store import DocumentRecord, store, utc_now_iso
+from ..users import User
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -18,7 +20,9 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
 @router.post("", response_model=DocumentSummary, status_code=201)
-async def upload_document(file: UploadFile = File(...)) -> DocumentSummary:
+async def upload_document(
+    file: UploadFile = File(...), user: User = Depends(current_user)
+) -> DocumentSummary:
     """Ingestion pipeline: upload -> extract -> chunk -> embed -> store."""
     data = await file.read()
     if not data:
@@ -57,6 +61,7 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentSummary:
         chunk_count=len(chunks),
         uploaded_at=utc_now_iso(),
         status="ready",
+        user_id=user.id,
     )
     store.add_document(record, chunks)
 
@@ -64,14 +69,14 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentSummary:
 
 
 @router.get("", response_model=list[DocumentSummary])
-def list_documents() -> list[DocumentSummary]:
-    return [DocumentSummary(**d.__dict__) for d in store.list_documents()]
+def list_documents(user: User = Depends(current_user)) -> list[DocumentSummary]:
+    return [DocumentSummary(**d.__dict__) for d in store.list_documents(user.id)]
 
 
 @router.get("/{document_id}/file")
-def get_document_file(document_id: str) -> Response:
+def get_document_file(document_id: str, user: User = Depends(current_user)) -> Response:
     """Serve the original bytes so the viewer can render and jump to a cited page."""
-    if store.get_document(document_id) is None:
+    if store.get_document(document_id, user.id) is None:
         raise HTTPException(404, "Document not found.")
     loaded = file_storage.load(document_id)
     if loaded is None:
@@ -85,8 +90,8 @@ def get_document_file(document_id: str) -> Response:
 
 
 @router.delete("/{document_id}", status_code=204)
-def delete_document(document_id: str) -> Response:
-    if not store.delete_document(document_id):
+def delete_document(document_id: str, user: User = Depends(current_user)) -> Response:
+    if not store.delete_document(document_id, user.id):
         raise HTTPException(404, "Document not found.")
     file_storage.delete(document_id)
     return Response(status_code=204)

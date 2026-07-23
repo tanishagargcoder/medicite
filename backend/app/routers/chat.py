@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from ..auth import current_user
 from ..generation import general_answer, generate_answer, to_citations
 from ..retrieval import retrieve
 from ..schemas import AskRequest, AskResponse
+from ..users import User
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
 @router.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest) -> AskResponse:
+def ask(request: AskRequest, user: User = Depends(current_user)) -> AskResponse:
     """Query pipeline: embed -> search -> rerank -> generate cited answer."""
     question = request.question.strip()
     if not question:
@@ -18,7 +20,7 @@ def ask(request: AskRequest) -> AskResponse:
     if len(question) > 2000:
         raise HTTPException(400, "Question is too long (2000 character limit).")
 
-    chunks, rerank_scores = retrieve(question, request.document_ids, request.top_k)
+    chunks, rerank_scores = retrieve(question, user.id, request.document_ids, request.top_k)
 
     # Grounded path: if we retrieved anything, try to answer from the documents.
     # The grounded model abstains (INSUFFICIENT_CONTEXT) when the excerpts don't

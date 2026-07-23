@@ -1,18 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import AnswerText from "@/components/AnswerText";
 import DocumentSidebar from "@/components/DocumentSidebar";
+import LoginPage from "@/components/LoginPage";
 import {
   ask,
   deleteDocument,
-  documentFileUrl,
+  documentFileSource,
+  getMe,
+  getToken,
   listDocuments,
+  logout,
   uploadDocument,
+  UnauthorizedError,
   type Citation,
   type DocumentSummary,
+  type User,
 } from "@/lib/api";
 
 // react-pdf touches the DOM directly, so it can't be server-rendered.
@@ -36,6 +42,9 @@ const SAMPLE_QUESTIONS = [
 ];
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeDoc, setActiveDoc] = useState<DocumentSummary | null>(null);
@@ -51,9 +60,49 @@ export default function Home() {
 
   const transcriptRef = useRef<HTMLDivElement>(null);
 
+  // Memoized so react-pdf doesn't reload the file on every render (a fresh
+  // object identity would look like a new document each time).
+  const fileSource = useMemo(
+    () => (activeDoc ? documentFileSource(activeDoc.id) : null),
+    [activeDoc],
+  );
+
+  // Restore the session on load: a stored token → fetch the user; otherwise show login.
   useEffect(() => {
-    listDocuments().then(setDocuments).catch(() => setBanner("Could not reach the API. Is the backend running on :8000?"));
+    if (!getToken()) {
+      setAuthChecked(true);
+      return;
+    }
+    getMe()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setAuthChecked(true));
   }, []);
+
+  // Load the signed-in user's documents.
+  useEffect(() => {
+    if (!user) {
+      setDocuments([]);
+      return;
+    }
+    listDocuments()
+      .then(setDocuments)
+      .catch(() => setBanner("Could not reach the API. Please try again."));
+  }, [user]);
+
+  const handleSignedOut = () => {
+    logout();
+    setUser(null);
+    setDocuments([]);
+    setTurns([]);
+    setActiveDoc(null);
+    setSelectedIds(new Set());
+  };
+
+  // Any 401 mid-session drops the user back to the login screen.
+  const guard = (err: unknown) => {
+    if (err instanceof UnauthorizedError) handleSignedOut();
+  };
 
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
@@ -67,6 +116,7 @@ export default function Home() {
       setDocuments((prev) => [doc, ...prev]);
       setActiveDoc(doc);
     } catch (err) {
+      guard(err);
       setBanner(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
@@ -83,7 +133,8 @@ export default function Home() {
         return next;
       });
       if (activeDoc?.id === id) setActiveDoc(null);
-    } catch {
+    } catch (err) {
+      guard(err);
       setBanner("Could not delete that document.");
     }
   };
@@ -136,6 +187,7 @@ export default function Home() {
         ),
       );
     } catch (err) {
+      guard(err);
       setTurns((prev) =>
         prev.map((t) =>
           t.id === turnId
@@ -148,9 +200,27 @@ export default function Home() {
     }
   };
 
+  // Auth gate: brief loading, then the login screen until signed in.
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <svg className="h-6 w-6 animate-spin text-clinical-500" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z" />
+        </svg>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onAuthed={setUser} />;
+  }
+
   return (
     <main className="flex h-screen overflow-hidden">
       <DocumentSidebar
+        user={user}
+        onSignOut={handleSignedOut}
         documents={documents}
         activeId={activeDoc?.id ?? null}
         selectedIds={selectedIds}
@@ -362,7 +432,7 @@ export default function Home() {
       {/* Viewer */}
       <section className="hidden w-[43%] min-w-0 shrink-0 lg:block">
         <PdfViewer
-          fileUrl={activeDoc ? documentFileUrl(activeDoc.id) : null}
+          fileSource={fileSource}
           filename={activeDoc?.filename ?? null}
           targetPage={targetPage}
           highlightText={highlightText}

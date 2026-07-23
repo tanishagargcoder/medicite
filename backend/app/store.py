@@ -44,6 +44,9 @@ class DocumentRecord:
     uploaded_at: str
     status: str = "ready"
     error: str | None = None
+    # Owner. Defaults to "" so indexes written before auth still load; those
+    # records simply belong to nobody and are invisible to every signed-in user.
+    user_id: str = ""
 
 
 class LocalStore:
@@ -101,7 +104,13 @@ class LocalStore:
             self._matrix = np.vstack([self._matrix, vectors]) if self._matrix.size else vectors
             self._persist()
 
-    def search(self, query_vector: list[float], top_k: int, document_ids: list[str] | None) -> list[StoredChunk]:
+    def search(
+        self,
+        query_vector: list[float],
+        top_k: int,
+        document_ids: list[str] | None,
+        user_id: str,
+    ) -> list[StoredChunk]:
         with self._lock:
             if not self._chunks:
                 return []
@@ -109,14 +118,16 @@ class LocalStore:
             query /= max(float(np.linalg.norm(query)), 1e-9)
             scores = self._matrix @ query
 
+            # Only ever search the caller's own documents.
+            owned = {d.id for d in self._docs.values() if d.user_id == user_id}
+            allowed = owned & set(document_ids) if document_ids else owned
+
             candidate_idx = np.arange(len(self._chunks))
-            if document_ids:
-                allowed = set(document_ids)
-                mask = np.array([c["document_id"] in allowed for c in self._chunks])
-                candidate_idx = candidate_idx[mask]
-                if candidate_idx.size == 0:
-                    return []
-                scores = scores[mask]
+            mask = np.array([c["document_id"] in allowed for c in self._chunks])
+            candidate_idx = candidate_idx[mask]
+            if candidate_idx.size == 0:
+                return []
+            scores = scores[mask]
 
             k = min(top_k, candidate_idx.size)
             top = np.argpartition(-scores, k - 1)[:k]
@@ -139,16 +150,19 @@ class LocalStore:
                 )
             return results
 
-    def list_documents(self) -> list[DocumentRecord]:
+    def list_documents(self, user_id: str) -> list[DocumentRecord]:
         with self._lock:
-            return sorted(self._docs.values(), key=lambda d: d.uploaded_at, reverse=True)
+            mine = [d for d in self._docs.values() if d.user_id == user_id]
+            return sorted(mine, key=lambda d: d.uploaded_at, reverse=True)
 
-    def get_document(self, document_id: str) -> DocumentRecord | None:
-        return self._docs.get(document_id)
+    def get_document(self, document_id: str, user_id: str) -> DocumentRecord | None:
+        doc = self._docs.get(document_id)
+        return doc if doc and doc.user_id == user_id else None
 
-    def delete_document(self, document_id: str) -> bool:
+    def delete_document(self, document_id: str, user_id: str) -> bool:
         with self._lock:
-            if document_id not in self._docs:
+            existing = self._docs.get(document_id)
+            if existing is None or existing.user_id != user_id:
                 return False
             keep = [i for i, c in enumerate(self._chunks) if c["document_id"] != document_id]
             self._chunks = [self._chunks[i] for i in keep]
@@ -189,10 +203,14 @@ class PgVectorStore:
                     chunk_count   INT  NOT NULL,
                     uploaded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
                     status        TEXT NOT NULL DEFAULT 'ready',
-                    error         TEXT
+                    error         TEXT,
+                    user_id       TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
+            # Additive migration for databases created before auth existed.
+            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            conn.execute("CREATE INDEX IF NOT EXISTS documents_user_id_idx ON documents(user_id)")
             conn.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS chunks (
@@ -218,14 +236,23 @@ class PgVectorStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO documents (id, filename, page_count, chunk_count, uploaded_at, status, error)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO documents (id, filename, page_count, chunk_count, uploaded_at, status, error, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     chunk_count = EXCLUDED.chunk_count,
                     status = EXCLUDED.status,
                     error = EXCLUDED.error
                 """,
-                (doc.id, doc.filename, doc.page_count, doc.chunk_count, doc.uploaded_at, doc.status, doc.error),
+                (
+                    doc.id,
+                    doc.filename,
+                    doc.page_count,
+                    doc.chunk_count,
+                    doc.uploaded_at,
+                    doc.status,
+                    doc.error,
+                    doc.user_id,
+                ),
             )
             with conn.cursor() as cur:
                 cur.executemany(
@@ -248,17 +275,24 @@ class PgVectorStore:
                     ],
                 )
 
-    def search(self, query_vector: list[float], top_k: int, document_ids: list[str] | None) -> list[StoredChunk]:
+    def search(
+        self,
+        query_vector: list[float],
+        top_k: int,
+        document_ids: list[str] | None,
+        user_id: str,
+    ) -> list[StoredChunk]:
         # 1 - cosine_distance == cosine similarity, so scores match LocalStore.
         sql = """
             SELECT c.id, c.document_id, d.filename, c.text, c.page_number,
                    c.section_title, c.ordinal, 1 - (c.embedding <=> %s) AS score
             FROM chunks c
             JOIN documents d ON d.id = c.document_id
+            WHERE d.user_id = %s
         """
-        params: list = [np.array(query_vector, dtype=np.float32)]
+        params: list = [np.array(query_vector, dtype=np.float32), user_id]
         if document_ids:
-            sql += " WHERE c.document_id = ANY(%s)"
+            sql += " AND c.document_id = ANY(%s)"
             params.append(list(document_ids))
         sql += " ORDER BY c.embedding <=> %s LIMIT %s"
         params.extend([np.array(query_vector, dtype=np.float32), top_k])
@@ -279,48 +313,43 @@ class PgVectorStore:
                 for r in cur.fetchall()
             ]
 
-    def list_documents(self) -> list[DocumentRecord]:
-        with self._connect() as conn, conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, filename, page_count, chunk_count, uploaded_at, status, error "
-                "FROM documents ORDER BY uploaded_at DESC"
-            )
-            return [
-                DocumentRecord(
-                    id=r[0],
-                    filename=r[1],
-                    page_count=r[2],
-                    chunk_count=r[3],
-                    uploaded_at=r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
-                    status=r[5],
-                    error=r[6],
-                )
-                for r in cur.fetchall()
-            ]
+    @staticmethod
+    def _row_to_doc(r) -> DocumentRecord:
+        return DocumentRecord(
+            id=r[0],
+            filename=r[1],
+            page_count=r[2],
+            chunk_count=r[3],
+            uploaded_at=r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
+            status=r[5],
+            error=r[6],
+            user_id=r[7],
+        )
 
-    def get_document(self, document_id: str) -> DocumentRecord | None:
+    def list_documents(self, user_id: str) -> list[DocumentRecord]:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(
-                "SELECT id, filename, page_count, chunk_count, uploaded_at, status, error "
-                "FROM documents WHERE id = %s",
-                (document_id,),
+                "SELECT id, filename, page_count, chunk_count, uploaded_at, status, error, user_id "
+                "FROM documents WHERE user_id = %s ORDER BY uploaded_at DESC",
+                (user_id,),
+            )
+            return [self._row_to_doc(r) for r in cur.fetchall()]
+
+    def get_document(self, document_id: str, user_id: str) -> DocumentRecord | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, filename, page_count, chunk_count, uploaded_at, status, error, user_id "
+                "FROM documents WHERE id = %s AND user_id = %s",
+                (document_id, user_id),
             )
             row = cur.fetchone()
-            if not row:
-                return None
-            return DocumentRecord(
-                id=row[0],
-                filename=row[1],
-                page_count=row[2],
-                chunk_count=row[3],
-                uploaded_at=row[4].isoformat() if hasattr(row[4], "isoformat") else str(row[4]),
-                status=row[5],
-                error=row[6],
-            )
+            return self._row_to_doc(row) if row else None
 
-    def delete_document(self, document_id: str) -> bool:
+    def delete_document(self, document_id: str, user_id: str) -> bool:
         with self._connect() as conn, conn.cursor() as cur:
-            cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))
+            cur.execute(
+                "DELETE FROM documents WHERE id = %s AND user_id = %s", (document_id, user_id)
+            )
             return cur.rowcount > 0
 
 

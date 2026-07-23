@@ -12,7 +12,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 interface Props {
-  fileUrl: string | null;
+  /** react-pdf file source: URL + auth headers (the /file endpoint is protected). */
+  fileSource: { url: string; httpHeaders: Record<string, string> } | null;
   filename: string | null;
   /** Page a citation asked us to jump to. Bumping `jumpNonce` re-triggers the
    *  scroll even when the same page is clicked twice in a row. */
@@ -42,7 +43,7 @@ function makeHighlighter(highlight: string) {
   };
 }
 
-export default function PdfViewer({ fileUrl, filename, targetPage, highlightText, jumpNonce }: Props) {
+export default function PdfViewer({ fileSource, filename, targetPage, highlightText, jumpNonce }: Props) {
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [flashPage, setFlashPage] = useState<number | null>(null);
@@ -60,7 +61,7 @@ export default function PdfViewer({ fileUrl, filename, targetPage, highlightText
     return () => clearTimeout(timer);
   }, [targetPage, jumpNonce, numPages]);
 
-  if (!fileUrl) {
+  if (!fileSource) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div className="max-w-xs">
@@ -101,7 +102,7 @@ export default function PdfViewer({ fileUrl, filename, targetPage, highlightText
           </div>
         ) : (
           <Document
-            file={fileUrl}
+            file={fileSource}
             onLoadSuccess={({ numPages }) => {
               setNumPages(numPages);
               setError(null);

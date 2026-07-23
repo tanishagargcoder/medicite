@@ -19,6 +19,7 @@ from .store import StoredChunk, store
 
 def retrieve(
     question: str,
+    user_id: str,
     document_ids: list[str] | None = None,
     top_k: int | None = None,
 ) -> tuple[list[StoredChunk], list[float] | None]:
@@ -27,7 +28,7 @@ def retrieve(
     final_k = top_k or settings.rerank_top_k
 
     query_vector = embed_query(question)
-    candidates = store.search(query_vector, settings.retrieval_top_k, document_ids)
+    candidates = store.search(query_vector, settings.retrieval_top_k, document_ids, user_id)
     if not candidates:
         return [], None
 

@@ -1,5 +1,34 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
+const TOKEN_KEY = "medicite_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem(TOKEN_KEY, token);
+  else window.localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export interface DocumentSummary {
   id: string;
   filename: string;
@@ -31,7 +60,14 @@ export interface AskResponse {
   usage: Record<string, number>;
 }
 
+/** Thrown on a 401 so the app can drop the session and show the login screen. */
+export class UnauthorizedError extends Error {}
+
 async function handle<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    setToken(null);
+    throw new UnauthorizedError("Your session has expired. Please sign in again.");
+  }
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
     throw new Error(detail?.detail ?? `Request failed (${res.status})`);
@@ -39,18 +75,61 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ---- Auth ----
+
+export async function register(email: string, name: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, name, password }),
+  });
+  const data = await handle<AuthResponse>(res);
+  setToken(data.token);
+  return data;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await handle<AuthResponse>(res);
+  setToken(data.token);
+  return data;
+}
+
+export async function getMe(): Promise<User> {
+  return handle(await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+export function logout(): void {
+  setToken(null);
+}
+
+// ---- Documents & chat (all authenticated) ----
+
 export async function listDocuments(): Promise<DocumentSummary[]> {
-  return handle(await fetch(`${API_BASE}/api/documents`, { cache: "no-store" }));
+  return handle(await fetch(`${API_BASE}/api/documents`, { headers: authHeaders(), cache: "no-store" }));
 }
 
 export async function uploadDocument(file: File): Promise<DocumentSummary> {
   const body = new FormData();
   body.append("file", file);
-  return handle(await fetch(`${API_BASE}/api/documents`, { method: "POST", body }));
+  return handle(
+    await fetch(`${API_BASE}/api/documents`, { method: "POST", headers: authHeaders(), body }),
+  );
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/documents/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/documents/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (res.status === 401) {
+    setToken(null);
+    throw new UnauthorizedError("Session expired.");
+  }
   if (!res.ok) throw new Error(`Delete failed (${res.status})`);
 }
 
@@ -61,12 +140,14 @@ export async function ask(
   return handle(
     await fetch(`${API_BASE}/api/ask`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ question, document_ids: documentIds }),
     }),
   );
 }
 
-export function documentFileUrl(id: string): string {
-  return `${API_BASE}/api/documents/${id}/file`;
+/** react-pdf `file` source — the /file endpoint is authenticated, so the token
+ *  rides along as a request header rather than in the URL. */
+export function documentFileSource(id: string): { url: string; httpHeaders: Record<string, string> } {
+  return { url: `${API_BASE}/api/documents/${id}/file`, httpHeaders: authHeaders() };
 }

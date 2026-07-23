@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { DocumentSummary } from "@/lib/api";
+import type { DocumentSummary, User } from "@/lib/api";
 
 interface Props {
+  user: User;
+  onSignOut: () => void;
   documents: DocumentSummary[];
   activeId: string | null;
   selectedIds: Set<string>;
@@ -15,6 +17,8 @@ interface Props {
 }
 
 export default function DocumentSidebar({
+  user,
+  onSignOut,
   documents,
   activeId,
   selectedIds,
@@ -151,10 +155,28 @@ export default function DocumentSidebar({
         )}
       </div>
 
-      <div className="border-t border-slate-200 px-4 py-3">
-        <p className="text-[11px] leading-snug text-slate-400">
-          Summarizes uploaded documents only. Not medical advice — verify against the
-          cited source.
+      <div className="border-t border-slate-200 p-3">
+        <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-clinical-100 text-sm font-bold uppercase text-clinical-700">
+            {(user.name || user.email).charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-800">{user.name}</p>
+            <p className="truncate text-xs text-slate-500">{user.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onSignOut}
+            title="Sign out"
+            className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+          </button>
+        </div>
+        <p className="mt-1 px-2 text-[11px] leading-snug text-slate-400">
+          Not medical advice — verify against the cited source.
         </p>
       </div>
     </aside>

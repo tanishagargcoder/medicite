@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     # this to your deployed frontend URL, e.g. "https://medicite.vercel.app".
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # Auth. ALWAYS set JWT_SECRET in production — the dev default is not secret,
+    # and changing it invalidates every issued token.
+    jwt_secret: str = "dev-only-insecure-change-me"
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
+
     # "local" (numpy, zero setup) or "pgvector" (Postgres via docker-compose)
     vector_store: str = "local"
     database_url: str = "postgresql://medicite:medicite@localhost:5433/medicite"

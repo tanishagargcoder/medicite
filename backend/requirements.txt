@@ -5,6 +5,10 @@ pymupdf>=1.24
 python-docx>=1.1
 fastembed>=0.7
 numpy>=1.26
+# auth
+pyjwt>=2.9
+email-validator>=2.2
+
 # generation providers (both free-tier; pick one via LLM_PROVIDER)
 groq>=0.13
 google-genai>=1.0
