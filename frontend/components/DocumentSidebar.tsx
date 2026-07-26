@@ -68,17 +68,35 @@ export default function DocumentSidebar({
             handleFiles(e.dataTransfer.files);
           }}
           onClick={() => inputRef.current?.click()}
-          className={`cursor-pointer rounded-lg border-2 border-dashed px-3 py-5 text-center transition ${
+          className={`group cursor-pointer rounded-xl border-2 border-dashed px-3 py-6 text-center transition ${
             dragging
-              ? "border-clinical-500 bg-clinical-50"
-              : "border-slate-300 bg-slate-50 hover:border-clinical-500"
+              ? "border-clinical-500 bg-clinical-50 scale-[1.01]"
+              : "border-slate-300 bg-gradient-to-b from-slate-50 to-white hover:border-clinical-400 hover:from-clinical-50"
           }`}
         >
-          <p className="text-sm font-medium text-slate-700">
+          <div
+            className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white transition ${
+              uploading
+                ? "bg-clinical-400"
+                : "bg-gradient-to-br from-clinical-500 to-clinical-400 group-hover:scale-110"
+            }`}
+          >
+            {uploading ? (
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
+              </svg>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-slate-700">
             {uploading ? "Processing…" : "Upload a record"}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {uploading ? "Extracting, chunking, embedding" : "PDF or DOCX · drag or click"}
+          <p className="mt-0.5 text-xs text-slate-500">
+            {uploading ? "Extracting · chunking · embedding" : "PDF or DOCX · drag or click"}
           </p>
           <input
             ref={inputRef}
@@ -108,10 +126,10 @@ export default function DocumentSidebar({
               {documents.map((doc) => (
                 <li
                   key={doc.id}
-                  className={`group rounded-md border px-2 py-2 transition ${
+                  className={`group rounded-lg border px-2 py-2 transition ${
                     activeId === doc.id
-                      ? "border-clinical-500 bg-clinical-50"
-                      : "border-transparent hover:bg-slate-50"
+                      ? "border-clinical-300 bg-clinical-50 shadow-sm"
+                      : "border-transparent hover:border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -120,8 +138,20 @@ export default function DocumentSidebar({
                       checked={selectedIds.has(doc.id)}
                       onChange={() => onToggleSelected(doc.id)}
                       title="Include in search scope"
-                      className="mt-1 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-clinical-500 focus:ring-clinical-500"
+                      className="mt-2 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-clinical-500 focus:ring-clinical-500"
                     />
+                    <span
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition ${
+                        activeId === doc.id
+                          ? "bg-clinical-500 text-white"
+                          : "bg-slate-100 text-slate-500 group-hover:bg-clinical-100 group-hover:text-clinical-600"
+                      }`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                        <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+                      </svg>
+                    </span>
                     <button
                       type="button"
                       onClick={() => onOpen(doc)}

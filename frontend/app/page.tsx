@@ -236,8 +236,8 @@ export default function Home() {
       />
 
       {/* Chat */}
-      <section className="flex min-w-0 flex-1 flex-col border-r border-slate-200 bg-white">
-        <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+      <section className="flex min-w-0 flex-1 flex-col border-r border-slate-200 bg-gradient-to-b from-white via-white to-clinical-50/30">
+        <header className="flex items-center justify-between border-b border-slate-200/70 bg-white/70 px-6 py-3 backdrop-blur-md">
           <div>
             <h2 className="text-sm font-semibold text-slate-800">Conversation</h2>
             <p className="text-xs text-slate-500">
@@ -395,9 +395,9 @@ export default function Home() {
             e.preventDefault();
             submit(question);
           }}
-          className="border-t border-slate-200 bg-white px-6 py-4"
+          className="border-t border-slate-200/70 bg-white/70 px-6 py-4 backdrop-blur-md"
         >
-          <div className="mx-auto flex max-w-2xl items-center gap-1.5 rounded-full border border-slate-300 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-clinical-500 focus-within:ring-2 focus-within:ring-clinical-500/20">
+          <div className="mx-auto flex max-w-2xl items-center gap-1.5 rounded-full border border-slate-300 bg-white py-1.5 pl-4 pr-1.5 shadow-card transition focus-within:border-clinical-500 focus-within:shadow-float focus-within:ring-2 focus-within:ring-clinical-500/20">
             <input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}

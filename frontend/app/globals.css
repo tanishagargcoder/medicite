@@ -10,9 +10,10 @@ body {
   @apply text-slate-900 antialiased;
   min-height: 100vh;
   background:
-    radial-gradient(1100px 500px at 12% -8%, rgba(15, 118, 110, 0.10), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(52, 211, 153, 0.08), transparent 55%),
-    #f6f8f9;
+    radial-gradient(900px 460px at 8% -10%, rgba(15, 118, 110, 0.14), transparent 60%),
+    radial-gradient(820px 480px at 105% 5%, rgba(52, 211, 153, 0.12), transparent 55%),
+    radial-gradient(700px 500px at 50% 115%, rgba(13, 95, 88, 0.08), transparent 60%),
+    #f3f6f7;
 }
 
 ::selection {
