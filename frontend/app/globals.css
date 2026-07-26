@@ -4,16 +4,45 @@
 
 :root {
   color-scheme: light;
+  /* Default accent (Indigo) — the picker overrides these at runtime. */
+  --c-50: 238 242 255;
+  --c-100: 224 231 255;
+  --c-200: 199 210 254;
+  --c-300: 165 180 252;
+  --c-400: 129 140 248;
+  --c-500: 79 70 229;
+  --c-600: 67 56 202;
+  --c-700: 55 48 163;
+  --c-800: 49 46 129;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 body {
   @apply text-slate-900 antialiased;
   min-height: 100vh;
   background:
-    radial-gradient(900px 460px at 8% -10%, rgba(15, 118, 110, 0.14), transparent 60%),
-    radial-gradient(820px 480px at 105% 5%, rgba(52, 211, 153, 0.12), transparent 55%),
-    radial-gradient(700px 500px at 50% 115%, rgba(13, 95, 88, 0.08), transparent 60%),
-    #f3f6f7;
+    radial-gradient(900px 460px at 8% -10%, rgb(var(--c-500) / 0.18), transparent 60%),
+    radial-gradient(820px 480px at 105% 5%, rgb(var(--c-400) / 0.16), transparent 55%),
+    radial-gradient(700px 520px at 50% 118%, rgb(var(--c-600) / 0.10), transparent 60%),
+    #f4f6fb;
+}
+
+html.dark body {
+  @apply text-slate-100;
+  background:
+    radial-gradient(900px 460px at 8% -10%, rgb(var(--c-500) / 0.30), transparent 60%),
+    radial-gradient(820px 480px at 105% 5%, rgb(var(--c-400) / 0.22), transparent 55%),
+    radial-gradient(700px 520px at 50% 118%, rgb(var(--c-700) / 0.28), transparent 60%),
+    #0a0f1e;
+}
+
+/* Smooth the flip between themes. */
+body,
+body * {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
 }
 
 ::selection {

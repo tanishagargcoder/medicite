@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from ..auth import current_user
-from ..generation import general_answer, generate_answer, to_citations
+from ..generation import general_answer, generate_answer, stream_answer, to_citations
 from ..retrieval import retrieve
 from ..schemas import AskRequest, AskResponse
 from ..users import User
@@ -53,4 +56,39 @@ def ask(request: AskRequest, user: User = Depends(current_user)) -> AskResponse:
         abstained=False,
         mode="general",
         usage=usage,
+    )
+
+
+@router.post("/ask/stream")
+def ask_stream(request: AskRequest, user: User = Depends(current_user)) -> StreamingResponse:
+    """Same query pipeline as /ask, streamed as Server-Sent Events.
+
+    Retrieval and reranking happen up front (they aren't streamable), then the
+    answer arrives token by token. The client reads this with fetch + a stream
+    reader rather than EventSource, because EventSource cannot send the
+    Authorization header.
+    """
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(400, "Question cannot be empty.")
+    if len(question) > 2000:
+        raise HTTPException(400, "Question is too long (2000 character limit).")
+
+    chunks, rerank_scores = retrieve(question, user.id, request.document_ids, request.top_k)
+
+    def events():
+        try:
+            for event in stream_answer(question, chunks, rerank_scores):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as exc:  # noqa: BLE001 — surface as a stream event, not a dead connection
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # stop proxies from buffering the stream
+        },
     )

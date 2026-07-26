@@ -5,7 +5,7 @@ import type { DocumentSummary, User } from "@/lib/api";
 
 interface Props {
   user: User;
-  onSignOut: () => void;
+  onOpenSettings: () => void;
   documents: DocumentSummary[];
   activeId: string | null;
   selectedIds: Set<string>;
@@ -18,7 +18,7 @@ interface Props {
 
 export default function DocumentSidebar({
   user,
-  onSignOut,
+  onOpenSettings,
   documents,
   activeId,
   selectedIds,
@@ -37,7 +37,7 @@ export default function DocumentSidebar({
   };
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-700/60 dark:bg-slate-900">
       <div className="relative overflow-hidden bg-gradient-to-br from-clinical-600 to-clinical-500 px-4 py-5 text-white">
         <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/5" />
@@ -70,8 +70,8 @@ export default function DocumentSidebar({
           onClick={() => inputRef.current?.click()}
           className={`group cursor-pointer rounded-xl border-2 border-dashed px-3 py-6 text-center transition ${
             dragging
-              ? "border-clinical-500 bg-clinical-50 scale-[1.01]"
-              : "border-slate-300 bg-gradient-to-b from-slate-50 to-white hover:border-clinical-400 hover:from-clinical-50"
+              ? "border-clinical-500 bg-clinical-50 scale-[1.01] dark:bg-clinical-500/10"
+              : "border-slate-300 bg-gradient-to-b from-slate-50 to-white hover:border-clinical-400 hover:from-clinical-50 dark:border-slate-600 dark:from-slate-800 dark:to-slate-900 dark:hover:border-clinical-400"
           }`}
         >
           <div
@@ -92,10 +92,10 @@ export default function DocumentSidebar({
               </svg>
             )}
           </div>
-          <p className="text-sm font-semibold text-slate-700">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             {uploading ? "Processing…" : "Upload a record"}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {uploading ? "Extracting · chunking · embedding" : "PDF or DOCX · drag or click"}
           </p>
           <input
@@ -113,13 +113,13 @@ export default function DocumentSidebar({
 
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         {documents.length === 0 ? (
-          <p className="px-1 py-4 text-xs text-slate-500">
+          <p className="px-1 py-4 text-xs text-slate-500 dark:text-slate-400">
             No documents yet. Upload a discharge summary, lab report, or paper to start
             asking questions.
           </p>
         ) : (
           <>
-            <p className="px-1 pb-2 pt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+            <p className="px-1 pb-2 pt-1 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Documents
             </p>
             <ul className="space-y-1">
@@ -128,8 +128,8 @@ export default function DocumentSidebar({
                   key={doc.id}
                   className={`group rounded-lg border px-2 py-2 transition ${
                     activeId === doc.id
-                      ? "border-clinical-300 bg-clinical-50 shadow-sm"
-                      : "border-transparent hover:border-slate-200 hover:bg-slate-50"
+                      ? "border-clinical-300 bg-clinical-50 shadow-sm dark:border-clinical-500/40 dark:bg-clinical-500/10"
+                      : "border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-800"
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -144,7 +144,7 @@ export default function DocumentSidebar({
                       className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition ${
                         activeId === doc.id
                           ? "bg-clinical-500 text-white"
-                          : "bg-slate-100 text-slate-500 group-hover:bg-clinical-100 group-hover:text-clinical-600"
+                          : "bg-slate-100 text-slate-500 group-hover:bg-clinical-100 group-hover:text-clinical-600 dark:bg-slate-800 dark:text-slate-400"
                       }`}
                     >
                       <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -157,10 +157,10 @@ export default function DocumentSidebar({
                       onClick={() => onOpen(doc)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <p className="truncate text-sm text-slate-800" title={doc.filename}>
+                      <p className="truncate text-sm text-slate-800 dark:text-slate-200" title={doc.filename}>
                         {doc.filename}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {doc.page_count} pages · {doc.chunk_count} chunks
                       </p>
                     </button>
@@ -176,7 +176,7 @@ export default function DocumentSidebar({
                 </li>
               ))}
             </ul>
-            <p className="px-1 pt-3 text-xs text-slate-400">
+            <p className="px-1 pt-3 text-xs text-slate-400 dark:text-slate-500">
               {selectedIds.size === 0
                 ? "Searching all documents."
                 : `Searching ${selectedIds.size} selected.`}
@@ -185,27 +185,28 @@ export default function DocumentSidebar({
         )}
       </div>
 
-      <div className="border-t border-slate-200 p-3">
-        <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-clinical-100 text-sm font-bold uppercase text-clinical-700">
+      <div className="border-t border-slate-200 p-3 dark:border-slate-700/60">
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Settings"
+          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-clinical-100 text-sm font-bold uppercase text-clinical-700 dark:bg-clinical-500/20 dark:text-clinical-300">
             {(user.name || user.email).charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-800">{user.name}</p>
-            <p className="truncate text-xs text-slate-500">{user.email}</p>
+            <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{user.name}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
           </div>
-          <button
-            type="button"
-            onClick={onSignOut}
-            title="Sign out"
-            className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-          >
+          <span className="shrink-0 text-slate-400 transition group-hover:text-slate-600 dark:text-slate-500">
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-          </button>
-        </div>
-        <p className="mt-1 px-2 text-[11px] leading-snug text-slate-400">
+          </span>
+        </button>
+        <p className="mt-1 px-2 text-[11px] leading-snug text-slate-400 dark:text-slate-500">
           Not medical advice — verify against the cited source.
         </p>
       </div>

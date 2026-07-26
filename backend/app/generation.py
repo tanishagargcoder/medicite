@@ -14,12 +14,62 @@ Two things make this "citation grounding" rather than "stuff chunks in a prompt"
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 from .config import settings
 from .schemas import Citation
 from .store import StoredChunk
 
 _client = None
+
+
+def _stream_llm(system_prompt: str, user_content: str) -> Iterator[str]:
+    """Yield the answer in text chunks as the provider produces them.
+
+    Same provider split as `_call_llm`; only the transport differs. Callers stay
+    provider-agnostic and just consume strings.
+    """
+    global _client
+    provider = settings.llm_provider.lower()
+
+    if provider == "gemini":
+        from google import genai
+        from google.genai import types
+
+        if _client is None:
+            _client = genai.Client(api_key=settings.google_api_key or None)
+        stream = _client.models.generate_content_stream(
+            model=settings.gemini_model,
+            contents=user_content,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=settings.max_answer_tokens,
+                temperature=0.0,
+            ),
+        )
+        for event in stream:
+            if event.text:
+                yield event.text
+        return
+
+    from groq import Groq
+
+    if _client is None:
+        _client = Groq(api_key=settings.groq_api_key or None)
+    completion = _client.chat.completions.create(
+        model=settings.groq_model,
+        max_tokens=settings.max_answer_tokens,
+        temperature=0.0,
+        stream=True,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    )
+    for chunk in completion:
+        piece = chunk.choices[0].delta.content if chunk.choices else None
+        if piece:
+            yield piece
 
 
 def _call_llm(system_prompt: str, user_content: str) -> tuple[str, bool, dict]:
@@ -253,3 +303,119 @@ def generate_answer(question: str, chunks: list[StoredChunk]) -> tuple[str, list
     markers = parse_markers(answer, valid)
 
     return answer, markers, abstained, usage
+
+
+# How much of the grounded answer to buffer before deciding whether it abstained.
+# The abstain token appears at the very start, so a small window is enough — and
+# it keeps time-to-first-token low.
+_ABSTAIN_PROBE_CHARS = 90
+
+
+def stream_answer(
+    question: str, chunks: list[StoredChunk], rerank_scores: list[float] | None
+) -> Iterator[dict]:
+    """Stream a hybrid answer as a sequence of events.
+
+    Event shapes:
+      {"type": "meta",  "mode": "grounded"|"general", "citations": [...]}
+      {"type": "delta", "text": "..."}
+      {"type": "done",  "answer": "<final cleaned text>", "cited_markers": [...],
+                        "abstained": bool}
+
+    The grounded attempt streams first, but its opening is buffered so we can
+    detect an abstention before showing anything. If it abstains, we discard that
+    output and stream the general answer instead — so the user never sees a
+    half-written wrong-mode answer.
+    """
+    grounded_text = ""
+
+    if chunks:
+        context = build_context_block(chunks)
+        user_content = (
+            f"{context}\n\n---\nQuestion: {question}\n\n"
+            f"Answer using only the excerpts above, citing every claim with its marker."
+        )
+
+        buffer = ""
+        decided = False
+        try:
+            for piece in _stream_llm(SYSTEM_PROMPT, user_content):
+                if decided:
+                    grounded_text += piece
+                    yield {"type": "delta", "text": piece}
+                    continue
+
+                buffer += piece
+                if len(buffer) < _ABSTAIN_PROBE_CHARS:
+                    continue
+
+                # Enough text to judge: abstain → fall through to general.
+                if ABSTAIN_TOKEN in buffer[:_ABSTAIN_PROBE_CHARS].upper():
+                    break
+
+                decided = True
+                grounded_text = buffer
+                yield {
+                    "type": "meta",
+                    "mode": "grounded",
+                    "citations": [c.model_dump() for c in to_citations(chunks, rerank_scores)],
+                }
+                yield {"type": "delta", "text": buffer}
+            else:
+                # Stream ended inside the probe window (a short answer).
+                if not decided and buffer and ABSTAIN_TOKEN not in buffer.upper():
+                    decided = True
+                    grounded_text = buffer
+                    yield {
+                        "type": "meta",
+                        "mode": "grounded",
+                        "citations": [c.model_dump() for c in to_citations(chunks, rerank_scores)],
+                    }
+                    yield {"type": "delta", "text": buffer}
+        except Exception:  # noqa: BLE001 — never leave the stream hanging
+            if decided:
+                valid = set(range(1, len(chunks) + 1))
+                cleaned = strip_invalid_markers(grounded_text, valid)
+                yield {
+                    "type": "done",
+                    "answer": cleaned,
+                    "cited_markers": parse_markers(cleaned, valid),
+                    "abstained": False,
+                }
+                return
+            decided = False
+
+        if decided:
+            valid = set(range(1, len(chunks) + 1))
+            cleaned = strip_invalid_markers(grounded_text, valid)
+            yield {
+                "type": "done",
+                "answer": cleaned,
+                "cited_markers": parse_markers(cleaned, valid),
+                "abstained": False,
+            }
+            return
+
+    # General path: nothing retrieved, or the grounded attempt abstained.
+    yield {"type": "meta", "mode": "general", "citations": []}
+    general_text = ""
+    try:
+        for piece in _stream_llm(GENERAL_SYSTEM_PROMPT, question):
+            general_text += piece
+            yield {"type": "delta", "text": piece}
+    except Exception:  # noqa: BLE001
+        pass
+
+    if not general_text.strip():
+        general_text = (
+            "I can't help with that one. Try rephrasing, or for medical concerns consult a "
+            "qualified clinician."
+        )
+        yield {"type": "delta", "text": general_text}
+
+    yield {
+        "type": "done",
+        "answer": general_text.strip(),
+        "cited_markers": [],
+        "abstained": False,
+    }

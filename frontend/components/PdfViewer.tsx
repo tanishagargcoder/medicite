@@ -65,15 +65,15 @@ export default function PdfViewer({ fileSource, filename, targetPage, highlightT
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div className="max-w-xs">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-clinical-500 shadow-card ring-1 ring-slate-200">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-clinical-500 shadow-card ring-1 ring-slate-200 dark:bg-slate-800 dark:text-clinical-300 dark:ring-slate-700">
             <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 3v4a1 1 0 0 0 1 1h4" />
               <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
               <path d="M9 13h6M9 17h4" />
             </svg>
           </div>
-          <p className="text-sm font-semibold text-slate-700">Source viewer</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Source viewer</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             Select a document on the left, or click a citation in an answer to jump
             straight to its source page.
           </p>
@@ -84,18 +84,18 @@ export default function PdfViewer({ fileSource, filename, targetPage, highlightT
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5">
-        <p className="truncate text-sm font-medium text-slate-700" title={filename ?? ""}>
+      <div className="flex items-center justify-between border-b border-slate-200 bg-white/70 px-4 py-2.5 backdrop-blur-md dark:border-slate-700/60 dark:bg-slate-900/60">
+        <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200" title={filename ?? ""}>
           {filename}
         </p>
         {numPages > 0 && (
-          <span className="ml-3 shrink-0 text-xs text-slate-500">
+          <span className="ml-3 shrink-0 text-xs text-slate-500 dark:text-slate-400">
             {numPages} page{numPages === 1 ? "" : "s"}
           </span>
         )}
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-100 p-4">
+      <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-100/60 p-4 dark:bg-slate-950/40">
         {error ? (
           <div className="mx-auto max-w-sm rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             {error}
