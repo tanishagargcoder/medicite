@@ -63,8 +63,11 @@ export interface AskResponse {
 /** Thrown on a 401 so the app can drop the session and show the login screen. */
 export class UnauthorizedError extends Error {}
 
-async function handle<T>(res: Response): Promise<T> {
-  if (res.status === 401) {
+/** `isAuthAttempt` distinguishes a sign-in/sign-up call from an already-signed-in
+ *  request. On the auth endpoints a 401 means "wrong credentials", not "session
+ *  expired" — mapping both to the same message is misleading. */
+async function handle<T>(res: Response, isAuthAttempt = false): Promise<T> {
+  if (res.status === 401 && !isAuthAttempt) {
     setToken(null);
     throw new UnauthorizedError("Your session has expired. Please sign in again.");
   }
@@ -83,7 +86,7 @@ export async function register(email: string, name: string, password: string): P
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, name, password }),
   });
-  const data = await handle<AuthResponse>(res);
+  const data = await handle<AuthResponse>(res, true);
   setToken(data.token);
   return data;
 }
@@ -94,7 +97,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  const data = await handle<AuthResponse>(res);
+  const data = await handle<AuthResponse>(res, true);
   setToken(data.token);
   return data;
 }

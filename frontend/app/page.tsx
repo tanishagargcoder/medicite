@@ -1,6 +1,10 @@
 import Link from "next/link";
 
 import AppPreview from "@/components/AppPreview";
+// Client component: it renders only a <canvas>, and all WebGL work happens in an
+// effect, so the page stays a Server Component and its text still ships in the
+// HTML for search engines.
+import HeartField from "@/components/HeartField";
 
 const FEATURES = [
   {
@@ -85,6 +89,8 @@ export default function Landing() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
 
+      <HeartField />
+
       {/* Nav */}
       <header className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/70 backdrop-blur-md">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
@@ -136,10 +142,20 @@ export default function Landing() {
         </div>
         <p className="mt-4 text-xs text-slate-400">Free to try · your documents stay private</p>
 
-        <div className="mt-14">
-          <AppPreview />
-        </div>
+        <p className="mt-16 text-[11px] font-semibold uppercase tracking-[0.2em] text-clinical-500/70">
+          scroll ↓
+        </p>
       </section>
+
+      {/* Room for the particle field to scatter and reassemble as you scroll. */}
+      <div aria-hidden="true" className="h-[130vh]" />
+
+      {/* Everything below sits on an opaque surface so the WebGL field stays a
+          hero effect rather than a distraction behind the content. */}
+      <div className="relative bg-gradient-to-b from-transparent via-white to-white pt-24">
+        <section className="mx-auto max-w-6xl px-6 pb-4">
+          <AppPreview />
+        </section>
 
       {/* Features */}
       <section className="mx-auto max-w-6xl px-6 py-12">
@@ -215,10 +231,11 @@ export default function Landing() {
             Get started free
           </Link>
         </div>
-      </section>
+        </section>
+      </div>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white">
+      <footer className="relative border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-slate-500 sm:flex-row">
           <Logo />
           <p className="max-w-md text-center text-xs leading-relaxed sm:text-right">

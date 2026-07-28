@@ -35,9 +35,14 @@ def root() -> dict:
 
 @app.get("/api/health")
 def health() -> dict:
+    from .users import uses_postgres
+
     return {
         "status": "ok",
         "vector_store": settings.vector_store,
+        # "local" here means accounts are on an ephemeral disk and will be lost on
+        # restart — see users.py. Deployments should report "postgres".
+        "user_store": "postgres" if uses_postgres() else "local",
         "storage_backend": settings.storage_backend,
         "embedding_model": settings.embedding_model,
         "llm_provider": settings.llm_provider,

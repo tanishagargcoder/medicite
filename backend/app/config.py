@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     # "local" (numpy, zero setup) or "pgvector" (Postgres via docker-compose)
     vector_store: str = "local"
+
+    # Where accounts live: "local" (JSON file) or "postgres" (DATABASE_URL).
+    # IMPORTANT for deployment: free hosting tiers have an ephemeral disk, so the
+    # local file is wiped on every restart and accounts vanish — set this to
+    # "postgres" in production. Setting VECTOR_STORE=pgvector implies it too.
+    user_store: str = "local"
     database_url: str = "postgresql://medicite:medicite@localhost:5433/medicite"
 
     # "local" disk or "s3"

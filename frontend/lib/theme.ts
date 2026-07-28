@@ -53,13 +53,13 @@ function applyMode(mode: Mode) {
 
 export function useTheme() {
   const [mode, setMode] = useState<Mode>("light");
-  const [accent, setAccentState] = useState<AccentId>("indigo");
+  const [accent, setAccentState] = useState<AccentId>("blue");
 
   useEffect(() => {
     const storedMode =
       (window.localStorage.getItem(MODE_KEY) as Mode | null) ??
       (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const storedAccent = (window.localStorage.getItem(ACCENT_KEY) as AccentId | null) ?? "indigo";
+    const storedAccent = (window.localStorage.getItem(ACCENT_KEY) as AccentId | null) ?? "blue";
     setMode(storedMode);
     setAccentState(storedAccent);
     applyMode(storedMode);

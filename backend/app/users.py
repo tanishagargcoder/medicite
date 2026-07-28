@@ -1,9 +1,14 @@
 """User storage — mirrors the vector-store pattern: a JSON file locally, a
-Postgres table when the app is configured for pgvector.
+Postgres table when configured.
 
-Note on the local backend: the JSON file lives on the app's disk, which is
-ephemeral on free hosting tiers — accounts reset on redeploy. Use the Postgres
-backend (VECTOR_STORE=pgvector + DATABASE_URL) for accounts that persist.
+⚠️ Deployment note: the local backend writes a JSON file to the app's own disk,
+which is **ephemeral** on free hosting tiers (Render, Fly, HF Spaces). The disk is
+wiped whenever the instance restarts or redeploys, so every account disappears —
+existing tokens then resolve to a missing user (a 401 that looks like "session
+expired") and signing in again fails because the account itself is gone.
+
+For any real deployment set USER_STORE=postgres with a DATABASE_URL pointing at a
+managed Postgres (Neon, Supabase, RDS). VECTOR_STORE=pgvector implies it as well.
 """
 
 from __future__ import annotations
@@ -129,8 +134,14 @@ class PgUserStore:
             return self._row_to_user(cur.fetchone())
 
 
+def uses_postgres() -> bool:
+    """Accounts go to Postgres when asked for directly, or implicitly when the
+    vector store is already on Postgres."""
+    return settings.user_store == "postgres" or settings.vector_store == "pgvector"
+
+
 def build_user_store():
-    if settings.vector_store == "pgvector":
+    if uses_postgres():
         return PgUserStore(settings.database_url)
     return LocalUserStore()
 
