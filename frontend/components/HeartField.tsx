@@ -46,8 +46,9 @@ attribute float aSeed;
 attribute float aSize;
 
 uniform float uTime;
-uniform float uMorph;     // 0 = grid, 1 = scattered, 2 = heart
+uniform float uMorph;     // 0 = orb, 1 = scattered, 2 = heart
 uniform float uAppear;
+uniform float uDrop;      // 0 = still falling in, 1 = settled
 uniform vec3  uCursor;
 uniform float uRepelRadius;
 uniform float uRepelStrength;
@@ -55,15 +56,7 @@ uniform float uActivity;
 
 varying float vDepth;
 varying float vSeed;
-varying float vPulse;
-
-/** Lub-dub: a strong beat followed by a softer one, then rest. ~60 bpm. */
-float heartbeat(float t) {
-  float p = fract(t);
-  float lub = exp(-pow((p - 0.08) * 13.0, 2.0));
-  float dub = exp(-pow((p - 0.26) * 15.0, 2.0)) * 0.55;
-  return lub + dub;
-}
+varying float vDrop;
 
 void main() {
   // Two-leg morph: orb -> scatter -> heart, each leg eased independently.
@@ -72,25 +65,22 @@ void main() {
   legA = legA * legA * (3.0 - 2.0 * legA);
   legB = legB * legB * (3.0 - 2.0 * legB);
 
-  float beat = heartbeat(uTime * 0.85);
-  vPulse = beat;
-
-  // The resting orb breathes with the beat and twists slowly, so the very first
-  // frame the visitor sees is already alive.
+  // The resting orb turns slowly — that is the only idle motion.
   vec3 orb = aGrid;
   float rl = length(orb) + 0.0001;
-  orb *= 1.0 + beat * 0.075;
-  float swirl = uTime * 0.22 + rl * 0.28;
+  float swirl = uTime * 0.16 + rl * 0.12;
   float cs = cos(swirl), sn = sin(swirl);
   orb.xz = mat2(cs, -sn, sn, cs) * orb.xz;
-  // A travelling ripple across the shell.
-  orb += normalize(aGrid) * sin(uTime * 1.6 - rl * 2.2 + aSeed * 6.28318) * 0.16;
 
   vec3 pos = mix(orb, aScatter, legA);
   pos = mix(pos, aHeart, legB);
 
-  // Once the heart has formed it takes over the beat.
-  pos *= 1.0 + beat * 0.05 * legB;
+  // Entrance: spheres rain in from above and decelerate into place. Each one is
+  // staggered by its seed so the field lands as a shower, not a single slab.
+  float d = clamp((uDrop - aSeed * 0.4) / 0.6, 0.0, 1.0);
+  d = 1.0 - pow(1.0 - d, 3.0);   // ease-out: fast fall, soft settle
+  vDrop = d;
+  pos.y += (1.0 - d) * 26.0;
 
   // Idle drift so nothing is ever perfectly static.
   float wob = sin(uTime * 0.8 + aSeed * 6.28318) * 0.06;
@@ -122,7 +112,7 @@ uniform float uAppear;
 
 varying float vDepth;
 varying float vSeed;
-varying float vPulse;
+varying float vDrop;
 
 void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
@@ -137,13 +127,11 @@ void main() {
   float rim = pow(1.0 - n.z, 2.2) * 0.35;
 
   vec3 base = mix(uDeep, uLight, vDepth * 0.75 + vSeed * 0.25);
-  // Each beat lifts the spheres toward the light tint, so the pulse is visible
-  // as a wave of brightness, not just movement.
-  base = mix(base, uLight, vPulse * 0.28);
   vec3 col = base * (0.30 + 0.70 * diff) + vec3(spec) * 0.85 + uLight * rim;
 
   float edge = smoothstep(1.0, 0.75, r2);
-  gl_FragColor = vec4(col, edge * uAppear * (0.88 + vPulse * 0.12));
+  // Fade each sphere in as it falls, so they arrive rather than pop.
+  gl_FragColor = vec4(col, edge * uAppear * vDrop * 0.95);
 }
 `;
 
@@ -224,6 +212,7 @@ export default function HeartField() {
       uTime: { value: 0 },
       uMorph: { value: 0 },
       uAppear: { value: 0 },
+      uDrop: { value: 0 },
       uCursor: { value: new THREE.Vector3() },
       uRepelRadius: { value: POINTER_RADIUS },
       uRepelStrength: { value: POINTER_STRENGTH },
@@ -327,13 +316,17 @@ export default function HeartField() {
       uniforms.uActivity.value = POINTER.activity;
 
       const elapsed = (performance.now() - appearStart) / 1000;
-      uniforms.uAppear.value = clamp((elapsed - 0.15) / 1.2, 0, 1);
+      uniforms.uAppear.value = clamp((elapsed - 0.1) / 0.6, 0, 1);
+      // The fall runs a little longer than the fade so the last spheres are
+      // still visibly settling as the field completes.
+      uniforms.uDrop.value = clamp(elapsed / 2.4, 0, 1);
 
       renderer.render(scene, camera);
     };
 
     if (reduceMotion) {
       uniforms.uAppear.value = 1;
+      uniforms.uDrop.value = 1; // already landed — skip the entrance
       uniforms.uMorph.value = 2; // show the finished heart, no animation
       renderer.render(scene, camera);
     } else {
