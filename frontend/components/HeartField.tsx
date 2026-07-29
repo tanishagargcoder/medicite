@@ -6,7 +6,7 @@ import * as THREE from "three";
 /* ---------------------------------------------------------------- constants */
 
 const COUNT = 7000;
-const CAM_START_Z = 13;
+const CAM_START_Z = 11.5;
 const CAM_END_Z = 9;
 const POINTER_RADIUS = 2.4;
 const POINTER_STRENGTH = 1.3;
@@ -55,18 +55,44 @@ uniform float uActivity;
 
 varying float vDepth;
 varying float vSeed;
+varying float vPulse;
+
+/** Lub-dub: a strong beat followed by a softer one, then rest. ~60 bpm. */
+float heartbeat(float t) {
+  float p = fract(t);
+  float lub = exp(-pow((p - 0.08) * 13.0, 2.0));
+  float dub = exp(-pow((p - 0.26) * 15.0, 2.0)) * 0.55;
+  return lub + dub;
+}
 
 void main() {
-  // Two-leg morph: grid -> scatter -> heart, each leg eased independently.
+  // Two-leg morph: orb -> scatter -> heart, each leg eased independently.
   float legA = clamp(uMorph, 0.0, 1.0);
   float legB = clamp(uMorph - 1.0, 0.0, 1.0);
   legA = legA * legA * (3.0 - 2.0 * legA);
   legB = legB * legB * (3.0 - 2.0 * legB);
 
-  vec3 pos = mix(aGrid, aScatter, legA);
+  float beat = heartbeat(uTime * 0.85);
+  vPulse = beat;
+
+  // The resting orb breathes with the beat and twists slowly, so the very first
+  // frame the visitor sees is already alive.
+  vec3 orb = aGrid;
+  float rl = length(orb) + 0.0001;
+  orb *= 1.0 + beat * 0.075;
+  float swirl = uTime * 0.22 + rl * 0.28;
+  float cs = cos(swirl), sn = sin(swirl);
+  orb.xz = mat2(cs, -sn, sn, cs) * orb.xz;
+  // A travelling ripple across the shell.
+  orb += normalize(aGrid) * sin(uTime * 1.6 - rl * 2.2 + aSeed * 6.28318) * 0.16;
+
+  vec3 pos = mix(orb, aScatter, legA);
   pos = mix(pos, aHeart, legB);
 
-  // Idle breathing so the field is never completely static.
+  // Once the heart has formed it takes over the beat.
+  pos *= 1.0 + beat * 0.05 * legB;
+
+  // Idle drift so nothing is ever perfectly static.
   float wob = sin(uTime * 0.8 + aSeed * 6.28318) * 0.06;
   pos += vec3(wob, wob * 0.7, wob * 0.5) * (1.0 - legB * 0.6);
 
@@ -96,6 +122,7 @@ uniform float uAppear;
 
 varying float vDepth;
 varying float vSeed;
+varying float vPulse;
 
 void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
@@ -110,10 +137,13 @@ void main() {
   float rim = pow(1.0 - n.z, 2.2) * 0.35;
 
   vec3 base = mix(uDeep, uLight, vDepth * 0.75 + vSeed * 0.25);
+  // Each beat lifts the spheres toward the light tint, so the pulse is visible
+  // as a wave of brightness, not just movement.
+  base = mix(base, uLight, vPulse * 0.28);
   vec3 col = base * (0.30 + 0.70 * diff) + vec3(spec) * 0.85 + uLight * rim;
 
   float edge = smoothstep(1.0, 0.75, r2);
-  gl_FragColor = vec4(col, edge * uAppear * 0.95);
+  gl_FragColor = vec4(col, edge * uAppear * (0.88 + vPulse * 0.12));
 }
 `;
 
@@ -149,16 +179,19 @@ export default function HeartField() {
     const seeds = new Float32Array(COUNT);
     const sizes = new Float32Array(COUNT);
 
-    const cols = Math.ceil(Math.sqrt(COUNT * 1.7));
-    const rows = Math.ceil(COUNT / cols);
+    // Golden-angle spiral: spreads points evenly over a sphere with no clumping
+    // at the poles, which a naive lat/long grid would give.
+    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
     for (let i = 0; i < COUNT; i++) {
-      // Orderly field, slightly jittered so it isn't mechanical.
-      const cx = i % cols;
-      const cy = Math.floor(i / cols);
-      grid[i * 3] = (cx / (cols - 1) - 0.5) * 15 + (Math.random() - 0.5) * 0.05;
-      grid[i * 3 + 1] = (cy / (rows - 1) - 0.5) * 8 + (Math.random() - 0.5) * 0.05;
-      grid[i * 3 + 2] = (Math.random() - 0.5) * 0.6;
+      const sy = 1 - (i / (COUNT - 1)) * 2;
+      const srad = Math.sqrt(Math.max(0, 1 - sy * sy));
+      const sth = GOLDEN * i;
+      // A thin shell rather than a solid ball — reads as a luminous orb.
+      const shell = 3.4 + (Math.random() - 0.5) * 0.45;
+      grid[i * 3] = Math.cos(sth) * srad * shell;
+      grid[i * 3 + 1] = sy * shell;
+      grid[i * 3 + 2] = Math.sin(sth) * srad * shell;
 
       // Scattered cloud, biased downward so the field reads as "dropping".
       const th = Math.random() * Math.PI * 2;
