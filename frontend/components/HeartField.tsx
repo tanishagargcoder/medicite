@@ -5,8 +5,9 @@ import * as THREE from "three";
 
 /* ---------------------------------------------------------------- constants */
 
-// Enough to fill a wide screen while each ball still reads as its own sphere.
-const COUNT = 5200;
+// Paired with the point size below for roughly half-covered screen: big, glossy
+// spheres that still read individually rather than merging into a mass.
+const COUNT = 1000;
 const CAM_START_Z = 11.5;
 const CAM_END_Z = 9;
 const POINTER_RADIUS = 2.4;
@@ -104,9 +105,9 @@ void main() {
   vDepth = clamp((mp.z + 3.5) / 7.0, 0.0, 1.0);
   vSeed = aSeed;
 
-  // Keep each ball a distinct dot (~10-20px). A larger factor here makes the
-  // sprites overlap into one blurred mass instead of a scattered field.
-  gl_PointSize = aSize * (12.0 / -mv.z) * uAppear;
+  // Sized so each sphere is big enough to show its shading and highlight
+  // (~19-72px depending on depth) while the field still reads as separate balls.
+  gl_PointSize = aSize * (32.0 / -mv.z) * uAppear;
   gl_PointSize = max(gl_PointSize, 1.0);
   gl_Position = projectionMatrix * mv;
 }
