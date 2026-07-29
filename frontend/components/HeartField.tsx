@@ -5,7 +5,8 @@ import * as THREE from "three";
 
 /* ---------------------------------------------------------------- constants */
 
-const COUNT = 7000;
+// Enough to fill a wide screen while each ball still reads as its own sphere.
+const COUNT = 5200;
 const CAM_START_Z = 11.5;
 const CAM_END_Z = 9;
 const POINTER_RADIUS = 2.4;
@@ -65,12 +66,16 @@ void main() {
   legA = legA * legA * (3.0 - 2.0 * legA);
   legB = legB * legB * (3.0 - 2.0 * legB);
 
-  // The resting orb turns slowly — that is the only idle motion.
+  // The resting field drifts in a slow spiral around the centre of the screen.
+  // Rotating in XY (around the view axis) keeps every sphere on screen, and the
+  // radius term makes the outside lag behind the middle — a lazy galaxy turn.
   vec3 orb = aGrid;
-  float rl = length(orb) + 0.0001;
-  float swirl = uTime * 0.16 + rl * 0.12;
+  float rl = length(orb.xy) + 0.0001;
+  float swirl = uTime * 0.22 - rl * 0.045;
   float cs = cos(swirl), sn = sin(swirl);
-  orb.xz = mat2(cs, -sn, sn, cs) * orb.xz;
+  orb.xy = mat2(cs, -sn, sn, cs) * orb.xy;
+  // A gentle sideways breath so it never looks like a rigid turntable.
+  orb.z += sin(uTime * 0.4 + rl * 0.35) * 0.6;
 
   vec3 pos = mix(orb, aScatter, legA);
   pos = mix(pos, aHeart, legB);
@@ -96,10 +101,12 @@ void main() {
 
   vec4 mv = viewMatrix * mp;
 
-  vDepth = clamp((mp.z + 3.0) / 6.0, 0.0, 1.0);
+  vDepth = clamp((mp.z + 3.5) / 7.0, 0.0, 1.0);
   vSeed = aSeed;
 
-  gl_PointSize = aSize * (300.0 / -mv.z) * uAppear;
+  // Keep each ball a distinct dot (~10-20px). A larger factor here makes the
+  // sprites overlap into one blurred mass instead of a scattered field.
+  gl_PointSize = aSize * (12.0 / -mv.z) * uAppear;
   gl_PointSize = max(gl_PointSize, 1.0);
   gl_Position = projectionMatrix * mv;
 }
@@ -127,11 +134,14 @@ void main() {
   float rim = pow(1.0 - n.z, 2.2) * 0.35;
 
   vec3 base = mix(uDeep, uLight, vDepth * 0.75 + vSeed * 0.25);
-  vec3 col = base * (0.30 + 0.70 * diff) + vec3(spec) * 0.85 + uLight * rim;
+  // Deeper shading range and a hotter highlight give each ball a readable form
+  // instead of a flat blue dot.
+  vec3 col = base * (0.18 + 0.82 * diff) + vec3(spec) * 1.15 + uLight * rim;
 
-  float edge = smoothstep(1.0, 0.75, r2);
+  // Tight falloff: crisp rim, no soft halo bleeding into its neighbours.
+  float edge = smoothstep(1.0, 0.90, r2);
   // Fade each sphere in as it falls, so they arrive rather than pop.
-  gl_FragColor = vec4(col, edge * uAppear * vDrop * 0.95);
+  gl_FragColor = vec4(col, edge * uAppear * vDrop);
 }
 `;
 
@@ -167,19 +177,19 @@ export default function HeartField() {
     const seeds = new Float32Array(COUNT);
     const sizes = new Float32Array(COUNT);
 
-    // Golden-angle spiral: spreads points evenly over a sphere with no clumping
-    // at the poles, which a naive lat/long grid would give.
-    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+    // A wide slab that overfills the frame, so the field reads as an open sky of
+    // spheres rather than a ball floating in the middle. Sized against what the
+    // camera can see at CAM_START_Z (FOV 45) with margin for wide screens.
+    // Wide enough to still reach the edges on a 21:9 display: at the far plane
+    // the camera sees roughly 29 units across, 13 tall.
+    const FIELD_W = 34;
+    const FIELD_H = 16;
+    const FIELD_D = 7;
 
     for (let i = 0; i < COUNT; i++) {
-      const sy = 1 - (i / (COUNT - 1)) * 2;
-      const srad = Math.sqrt(Math.max(0, 1 - sy * sy));
-      const sth = GOLDEN * i;
-      // A thin shell rather than a solid ball — reads as a luminous orb.
-      const shell = 3.4 + (Math.random() - 0.5) * 0.45;
-      grid[i * 3] = Math.cos(sth) * srad * shell;
-      grid[i * 3 + 1] = sy * shell;
-      grid[i * 3 + 2] = Math.sin(sth) * srad * shell;
+      grid[i * 3] = (Math.random() - 0.5) * FIELD_W;
+      grid[i * 3 + 1] = (Math.random() - 0.5) * FIELD_H;
+      grid[i * 3 + 2] = (Math.random() - 0.5) * FIELD_D;
 
       // Scattered cloud, biased downward so the field reads as "dropping".
       const th = Math.random() * Math.PI * 2;
@@ -195,7 +205,7 @@ export default function HeartField() {
       heart[i * 3 + 2] = hz;
 
       seeds[i] = Math.random();
-      sizes[i] = 5.5 + Math.random() * 5.5;
+      sizes[i] = 9 + Math.random() * 9;
     }
 
     const geo = new THREE.BufferGeometry();
@@ -226,8 +236,10 @@ export default function HeartField() {
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
-      depthWrite: false,
-      depthTest: false,
+      // Depth on: nearer spheres properly occlude farther ones. Without this
+      // every ball blends through its neighbours and the field turns to haze.
+      depthTest: true,
+      depthWrite: true,
     });
 
     const points = new THREE.Points(geo, mat);
