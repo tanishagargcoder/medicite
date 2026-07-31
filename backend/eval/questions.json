@@ -1,0 +1,110 @@
+{
+  "document": "data/sample_discharge_summary.pdf",
+  "note": "Relevance is labelled by section title (and page), because chunk ids are regenerated on every ingest while sections are stable. A question is 'answerable' only if the corpus actually contains the answer.",
+  "questions": [
+    {
+      "question": "What medications was the patient discharged on, and at what doses?",
+      "answerable": true,
+      "relevant": [{ "page": 3, "section": "Discharge Medications" }]
+    },
+    {
+      "question": "What was the left ventricular ejection fraction?",
+      "answerable": true,
+      "relevant": [
+        { "page": 2, "section": "Imaging" },
+        { "page": 3, "section": "Assessment And Plan" }
+      ]
+    },
+    {
+      "question": "What was the discharge diagnosis?",
+      "answerable": true,
+      "relevant": [{ "page": 3, "section": "Assessment And Plan" }]
+    },
+    {
+      "question": "What was the patient's BNP level?",
+      "answerable": true,
+      "relevant": [{ "page": 2, "section": "Laboratory Results" }]
+    },
+    {
+      "question": "Is the patient allergic to anything?",
+      "answerable": true,
+      "relevant": [{ "page": 1, "section": "Allergies" }]
+    },
+    {
+      "question": "What was the blood pressure on admission?",
+      "answerable": true,
+      "relevant": [{ "page": 2, "section": "Vital Signs" }]
+    },
+    {
+      "question": "What did the chest radiograph show?",
+      "answerable": true,
+      "relevant": [{ "page": 2, "section": "Imaging" }]
+    },
+    {
+      "question": "What follow-up appointments were recommended?",
+      "answerable": true,
+      "relevant": [{ "page": 3, "section": "Follow-Up" }]
+    },
+    {
+      "question": "Why did the patient come to the emergency department?",
+      "answerable": true,
+      "relevant": [
+        { "page": 1, "section": "Chief Complaint" },
+        { "page": 1, "section": "History Of Present Illness" }
+      ]
+    },
+    {
+      "question": "Does the patient have diabetes?",
+      "answerable": true,
+      "relevant": [{ "page": 1, "section": "Past Medical History" }]
+    },
+    {
+      "question": "What happened on day 3 of the hospital stay?",
+      "answerable": true,
+      "relevant": [{ "page": 3, "section": "Hospital Course" }]
+    },
+    {
+      "question": "What was the serum creatinine at discharge?",
+      "answerable": true,
+      "relevant": [{ "page": 2, "section": "Laboratory Results" }]
+    },
+    {
+      "question": "Was the troponin elevated?",
+      "answerable": true,
+      "relevant": [
+        { "page": 2, "section": "Laboratory Results" },
+        { "page": 3, "section": "Assessment And Plan" }
+      ]
+    },
+    {
+      "question": "What was the patient's hemoglobin A1c?",
+      "answerable": true,
+      "relevant": [{ "page": 2, "section": "Laboratory Results" }]
+    },
+    {
+      "question": "What sodium restriction was advised?",
+      "answerable": true,
+      "relevant": [{ "page": 3, "section": "Follow-Up" }]
+    },
+    {
+      "question": "What is the patient's blood type?",
+      "answerable": false,
+      "relevant": []
+    },
+    {
+      "question": "What was the patient's BMI on admission?",
+      "answerable": false,
+      "relevant": []
+    },
+    {
+      "question": "Which surgeon performed the operation?",
+      "answerable": false,
+      "relevant": []
+    },
+    {
+      "question": "What COVID-19 vaccine did the patient receive?",
+      "answerable": false,
+      "relevant": []
+    }
+  ]
+}
